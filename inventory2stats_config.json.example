@@ -1,0 +1,14 @@
+{
+  "statdb": {
+    "data_source": "dbi:mysql:dbname:dbnamehost",
+    "username": "dbuser",
+    "password": "dbpass"
+  },
+
+  "inventorydb": {
+    "host": "host",
+    "database": "dbname",
+    "username": "dbuser",
+    "password": "dbpass"
+  }
+}

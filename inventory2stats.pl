@@ -31,13 +31,16 @@ my $mongo = MongoDB::MongoClient->new(
 
 my $invdb = $mongo->get_database( $config->{inventorydb}->{database} );
 my $foxmldata = $invdb->get_collection('foxml.data');
+my $doccount = $foxmldata->count();
 my $docs = $foxmldata->find;
 
 my $ss = "INSERT INTO inventory (oid, cmodel, owner, state, acccode, redcode, created, modified) VALUES (?,?,?,?,?,?,?,?)";
 my $sth = $dbh->prepare($ss) or die "ERR: can't prepare: ".$DBI::errstr;
+my $i = 0;
 while (my $d = $docs->next) {
   #print Dumper($d);
-
+  $i++;
+  print "inserting $i/$doccount\n";
   $sth->execute(
     $d->{pid},
     $d->{model},

@@ -1,4 +1,9 @@
 {
+
+  "api": {
+    "url":"https://phaidra-api-url"
+  },
+
   "statdb": {
     "data_source": "dbi:mysql:dbname:dbnamehost",
     "username": "dbuser",

@@ -5,6 +5,8 @@
      
      "url":"xxxxxxxxxxxxxxxxxxxx",
      
+     "services_triples" : "xxxxxxxxxxxxxxx/api/search/triples",
+     
      "frontendStatsMysql":{ 
                
            "host": "xxxxxxxxxxxxxxxxxxxx",

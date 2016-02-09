@@ -21,6 +21,8 @@ my $config = Config::JSON->new(pathToFile => $pathToFile);
 $config = $config->{config};
 
 my $instaceNumber =  $config->{phaidra_instances}->{instance_number};
+my $servicesTriples =  $config->{phaidra_instances}->{services_triples};
+
 
 #connect to frontend Statistics database (Hose)
 my $hostFrontendStats     = $config->{phaidra_instances}->{frontendStatsMysql}->{host};
@@ -92,9 +94,9 @@ sub getTitle($){
      $ua->agent("$0/0.1 " . $ua->agent);
  
      my $req = HTTP::Request->new(
-           GET => "https://services.phaidra-sandbox.univie.ac.at/api/search/triples?q=<info:fedora/".$pid."> <http://purl.org/dc/elements/1.1/title> *");
+           GET => "$servicesTriples?q=<info:fedora/".$pid."> <http://purl.org/dc/elements/1.1/title> *");
      $req->header('Accept' => 'application/json');
- 
+
      my $res = $ua->request($req);
  
      my $json;

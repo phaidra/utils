@@ -1,0 +1,52 @@
+{
+   "phaidra_instances":{
+     
+     "instance_number": "4",
+     
+     "url":"xxxxxxxxxxxxxxxxxxxx",
+     
+     "frontendStatsMysql":{ 
+               
+           "host": "xxxxxxxxxxxxxxxxxxxx",
+           
+           "dbName": "xxxxxxxxxxxxxxxxxxxx",
+           
+           "user": "xxxxxxxxxxxxxxxxxxxx",
+           
+           "pass": "xxxxxxxxxxxxxxxxxxxx"
+               
+      },
+     
+     "mongoDb":{
+       
+           "host": "xxxxxxxxxxxxxxxxxxxx",
+           
+           "dbName": "xxxxxxxxxxxxxxxxxxxx",
+           
+           "user": "xxxxxxxxxxxxxxxxxxxx",
+           
+           "pass": "xxxxxxxxxxxxxxxxxxxx"
+       
+      },
+      "fedoramysql12":{
+            
+           "host": "xxxxxxxxxxxxxxxxxxxx",
+           
+           "dbName": "xxxxxxxxxxxxxxxxxxxx",
+           
+           "user": "xxxxxxxxxxxxxxxxxxxx",
+           
+           "pass": "xxxxxxxxxxxxxxxxxxxx"  
+                   }
+   },
+   "piwikMysql":{
+           
+           "host": "xxxxxxxxxxxxxxxxxxxx",
+           
+           "dbName": "xxxxxxxxxxxxxxxxxxxx",
+           
+           "user": "xxxxxxxxxxxxxxxxxxxx",
+           
+           "pass": "xxxxxxxxxxxxxxxxxxxx"
+   }
+}

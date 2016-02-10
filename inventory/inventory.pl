@@ -51,24 +51,39 @@ my $collection = $client->ns('ph001.foxml.ds');
 my $dataset    = $collection->find();
 my $mongoDbData;
 while (my $doc = $dataset->next){
-     my $updated_at = 0;
-     $updated_at = strftime("%Y-%m-%d %H:%M:%S", localtime($doc->{'updated_at'})) if defined $doc->{'updated_at'};
-     my $mtime = 0;
-     $mtime = strftime("%Y-%m-%d %H:%M:%S", localtime($doc->{'mtime'})) if defined $doc->{'mtime'};
+     if(
+         $doc->{'model'} eq 'Picture' or
+         $doc->{'model'} eq 'PDFDocument' or
+         $doc->{'model'} eq 'Container' or 
+         $doc->{'model'} eq 'Resource' or 
+         $doc->{'model'} eq 'Collection' or 
+         $doc->{'model'} eq 'Asset' or 
+         $doc->{'model'} eq 'Video' or 
+         $doc->{'model'} eq 'Audio' or 
+         $doc->{'model'} eq 'LaTeXDocument' or 
+         $doc->{'model'} eq 'Page' or 
+         $doc->{'model'} eq 'Book' or 
+         $doc->{'model'} eq 'Paper'
+        ){
+           my $updated_at = 0;
+           $updated_at = strftime("%Y-%m-%d %H:%M:%S", localtime($doc->{'updated_at'})) if defined $doc->{'updated_at'};
+           my $mtime = 0;
+           $mtime = strftime("%Y-%m-%d %H:%M:%S", localtime($doc->{'mtime'})) if defined $doc->{'mtime'};
      
-     my $element;
-     $element->{pid} = $doc->{'pid'};
-     $element->{mtime} = $mtime;
-     $element->{updated_at} = $updated_at;
-     $element->{fs_size} = $doc->{'fs_size'};
-     $element->{red_code} = $doc->{'red_code'};
-     $element->{mimetype} = $doc->{'mimetype'};
-     $element->{acc_code} = $doc->{'acc_code'};
-     $element->{ownerId} = $doc->{'ownerId'};
-     $element->{model} = $doc->{'model'};
-     $element->{'state'} = $doc->{'state'};
+           my $element;
+           $element->{pid} = $doc->{'pid'};
+           $element->{mtime} = $mtime;
+           $element->{updated_at} = $updated_at;
+           $element->{fs_size} = $doc->{'fs_size'};
+           $element->{red_code} = $doc->{'red_code'};
+           $element->{mimetype} = $doc->{'mimetype'};
+           $element->{acc_code} = $doc->{'acc_code'};
+           $element->{ownerId} = $doc->{'ownerId'};
+           $element->{model} = $doc->{'model'};
+           $element->{'state'} = $doc->{'state'};
      
-     $mongoDbData->{$doc->{'pid'}} = $element;
+           $mongoDbData->{$doc->{'pid'}} = $element;
+     }
 }
 my $numberOfMongoDBRecords = keys %{$mongoDbData};
 

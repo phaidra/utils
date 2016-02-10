@@ -1,54 +1,60 @@
 {
-   "phaidra_instances":{
-     
-     "instance_number": "4",
-     
-     "url":"xxxxxxxxxxxxxxxxxxxx",
-     
-     "services_triples" : "xxxxxxxxxxxxxxx/api/search/triples",
-     
-     "frontendStatsMysql":{ 
-               
-           "host": "xxxxxxxxxxxxxxxxxxxx",
-           
-           "dbName": "xxxxxxxxxxxxxxxxxxxx",
-           
-           "user": "xxxxxxxxxxxxxxxxxxxx",
-           
-           "pass": "xxxxxxxxxxxxxxxxxxxx"
-               
-      },
-     
-     "mongoDb":{
-       
-           "host": "xxxxxxxxxxxxxxxxxxxx",
-           
-           "dbName": "xxxxxxxxxxxxxxxxxxxx",
-           
-           "user": "xxxxxxxxxxxxxxxxxxxx",
-           
-           "pass": "xxxxxxxxxxxxxxxxxxxx"
-       
-      },
-      "fedoramysql12":{
-            
-           "host": "xxxxxxxxxxxxxxxxxxxx",
-           
-           "dbName": "xxxxxxxxxxxxxxxxxxxx",
-           
-           "user": "xxxxxxxxxxxxxxxxxxxx",
-           
-           "pass": "xxxxxxxxxxxxxxxxxxxx"  
-                   }
-   },
-   "piwikMysql":{
-           
-           "host": "xxxxxxxxxxxxxxxxxxxx",
-           
-           "dbName": "xxxxxxxxxxxxxxxxxxxx",
-           
-           "user": "xxxxxxxxxxxxxxxxxxxx",
-           
-           "pass": "xxxxxxxxxxxxxxxxxxxx"
-   }
+        "phaidra_instances": [
+
+                {
+                        "phaidra_instance": {
+
+                                "instance_number": "xxxxxxxxxxxxxxxxxxxxxxx",
+
+                                "url": "xxxxxxxxxxxxxxxxxxxxxxx",
+
+                                "services_triples": "xxxxxxxxxxxxxxxxxxxxxxx/api/search/triples",
+
+                                "mongoDb": {
+
+                                        "host": "xxxxxxxxxxxxxxxxxxxxxxx",
+
+                                        "dbName": "xxxxxxxxxxxxxxxxxxxxxxx",
+
+                                        "user": "xxxxxxxxxxxxxxxxxxxxxxx",
+
+                                        "pass": "xxxxxxxxxxxxxxxxxxxxxxx"
+
+                                },
+                                "phairaUsersDB": {
+
+                                        "host": "xxxxxxxxxxxxxxxxxxxxxxx",
+
+                                        "dbName": "xxxxxxxxxxxxxxxxxxxxxxx",
+
+                                        "user": "xxxxxxxxxxxxxxxxxxxxxxx",
+
+                                        "pass": "xxxxxxxxxxxxxxxxxxxxxxx"
+                                }
+
+                        }
+                }
+
+        ],
+        "piwikMysql": {
+
+                "host": "xxxxxxxxxxxxxxxxxxxxxxx",
+
+                "dbName": "xxxxxxxxxxxxxxxxxxxxxxx",
+
+                "user": "xxxxxxxxxxxxxxxxxxxxxxx",
+
+                "pass": "xxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        "frontendStatsMysql": {
+
+                "host": "xxxxxxxxxxxxxxxxxxxxxxx",
+
+                "dbName": "xxxxxxxxxxxxxxxxxxxxxxx",
+
+                "user": "xxxxxxxxxxxxxxxxxxxxxxx",
+
+                "pass": "xxxxxxxxxxxxxxxxxxxxxxx"
+
+        }
 }

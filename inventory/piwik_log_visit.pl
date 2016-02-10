@@ -13,7 +13,7 @@ use DBI;
 
 =head1 Generate thumbnails 
 
-perl inventory.pl path/to/config/config.json
+perl piwik_log_visit.pl path/to/config/config.json
 
 =cut
 
@@ -21,7 +21,7 @@ perl inventory.pl path/to/config/config.json
 #get config data
 my $pathToFile = $ARGV[0];
 if(not defined $pathToFile) {
-     print "Please enter path to config as a parameter. e.g: perl inventory.pl my/path/to/config/config.json";
+     print "Please enter path to config as a parameter. e.g: perl piwik_log_visit.pl my/path/to/config/config.json";
      system ("perldoc '$0'"); exit (0); 
 }
 
@@ -30,10 +30,10 @@ $config = $config->{config};
 
 
 #connect to frontend Statistics database (Hose)
-my $hostFrontendStats     = $config->{phaidra_instances}->{frontendStatsMysql}->{host};
-my $dbNameFrontendStats   = $config->{phaidra_instances}->{frontendStatsMysql}->{dbName};
-my $userFrontendStats     = $config->{phaidra_instances}->{frontendStatsMysql}->{user};
-my $passFrontendStats     = $config->{phaidra_instances}->{frontendStatsMysql}->{pass};
+my $hostFrontendStats     = $config->{frontendStatsMysql}->{host};
+my $dbNameFrontendStats   = $config->{frontendStatsMysql}->{dbName};
+my $userFrontendStats     = $config->{frontendStatsMysql}->{user};
+my $passFrontendStats     = $config->{frontendStatsMysql}->{pass};
 my $dbhFrontendStats = DBI->connect(          
                                   "dbi:mysql:dbname=$dbNameFrontendStats;host=$hostFrontendStats", 
                                   $userFrontendStats,

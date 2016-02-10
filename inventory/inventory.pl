@@ -17,30 +17,48 @@ use JSON;
 
 =head1 Generate thumbnails 
 
-perl inventory.pl path/to/config/config.json
+usage:
+inventory.pl path_to_config instance_number
+e.g. perl inventory.pl path/to/config/config.json 4
 
 =cut
 
 
 # get config data
 my $pathToFile = $ARGV[0];
+my $instanceNumber = $ARGV[1];
 if(not defined $pathToFile) {
-     print "Please enter path to config as a parameter. e.g: perl inventory.pl my/path/to/config/config.json";
+     print "Please enter path to config as first parameter. e.g: perl inventory.pl my/path/to/config/config.json 4";
+     system ("perldoc '$0'"); exit (0); 
+}
+if(not defined $instanceNumber) {
+     print "Please enter path to config as second parameter. e.g: perl inventory.pl my/path/to/config/config.json 4";
      system ("perldoc '$0'"); exit (0); 
 }
 
 my $config = Config::JSON->new(pathToFile => $pathToFile);
 $config = $config->{config};
 
-my $instaceNumber =  $config->{phaidra_instances}->{instance_number};
-my $servicesTriples =  $config->{phaidra_instances}->{services_triples};
+my @phaidraInstances = @{$config->{phaidra_instances}};
+
+my $curentPhaidraInstance;
+foreach (@phaidraInstances){
+      if($_->{phaidra_instance}->{instance_number} eq $instanceNumber){
+               $curentPhaidraInstance = $_->{phaidra_instance};
+      }
+}
+
+my $servicesTriples =  $curentPhaidraInstance->{services_triples};
 
 
 #connect to frontend Statistics database (Hose)
-my $hostFrontendStats     = $config->{phaidra_instances}->{frontendStatsMysql}->{host};
-my $dbNameFrontendStats   = $config->{phaidra_instances}->{frontendStatsMysql}->{dbName};
-my $userFrontendStats     = $config->{phaidra_instances}->{frontendStatsMysql}->{user};
-my $passFrontendStats     = $config->{phaidra_instances}->{frontendStatsMysql}->{pass};
+
+my $hostFrontendStats     = $config->{frontendStatsMysql}->{host};
+my $dbNameFrontendStats   = $config->{frontendStatsMysql}->{dbName};
+my $userFrontendStats     = $config->{frontendStatsMysql}->{user};
+my $passFrontendStats     = $config->{frontendStatsMysql}->{pass};
+
+
 my $dbhFrontendStats = DBI->connect(          
                                   "dbi:mysql:dbname=$dbNameFrontendStats;host=$hostFrontendStats", 
                                   $userFrontendStats,
@@ -49,10 +67,10 @@ my $dbhFrontendStats = DBI->connect(
                                 ) or die $DBI::errstr;
                                 
 #connect to mongoDb
-my $connestionString = 'mongodb://'.$config->{phaidra_instances}->{mongoDb}->{user}.':'.
-                                    $config->{phaidra_instances}->{mongoDb}->{pass}.'@'.
-                                    $config->{phaidra_instances}->{mongoDb}->{host}.'/'.
-                                    $config->{phaidra_instances}->{mongoDb}->{dbName};
+my $connestionString = 'mongodb://'.$curentPhaidraInstance->{mongoDb}->{user}.':'.
+                                    $curentPhaidraInstance->{mongoDb}->{pass}.'@'.
+                                    $curentPhaidraInstance->{mongoDb}->{host}.'/'.
+                                    $curentPhaidraInstance->{mongoDb}->{dbName};
   
 my $client     = MongoDB->connect($connestionString);
 my $collection = $client->ns('ph001.foxml.ds');
@@ -164,7 +182,7 @@ sub insertRecord($){
     my $frontendStats_insert_query = "INSERT INTO `inventory` (`idsite`, `oid`, `cmodel`, `mimetype`, `owner`, `state`, `filesize`, `redcode`, `acccode`, `created`, `modified`, `title`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
     my $sthFrontendStats_insert = $dbhFrontendStats->prepare($frontendStats_insert_query);
     $sthFrontendStats_insert->execute(
-                                            $instaceNumber,
+                                            $instanceNumber,
                                             $pid,
                                             $mongoDbData->{$pid}->{model},
                                             $mongoDbData->{$pid}->{mimetype},

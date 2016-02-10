@@ -28,10 +28,10 @@ my $config = Config::JSON->new(pathToFile => $pathToFile);
 $config = $config->{config};
 
 
-my $host     = $config->{phaidra_instances}->{frontendStatsMysql}->{host};
-my $dbName   = $config->{phaidra_instances}->{frontendStatsMysql}->{dbName};
-my $user     = $config->{phaidra_instances}->{frontendStatsMysql}->{user};
-my $pass     = $config->{phaidra_instances}->{frontendStatsMysql}->{pass};
+my $host     = $config->{frontendStatsMysql}->{host};
+my $dbName   = $config->{frontendStatsMysql}->{dbName};
+my $user     = $config->{frontendStatsMysql}->{user};
+my $pass     = $config->{frontendStatsMysql}->{pass};
 
 my $dbMysqlHanler = DBI->connect(          
                                   "dbi:mysql:dbname=$dbName;host=$host", 

@@ -401,7 +401,7 @@ foreach my $keyfrontendStats (keys %{$frontendStats}){
 
 
 
-print "search_pattern inserted:",$counterInsert,"\n";
-print "search_pattern updated:",$counterUpdate,"\n";
-print "search_pattern deleted:",$counterDelete,"\n";
+print "piwik_log_visit inserted:",$counterInsert,"\n";
+print "piwik_log_visit updated:",$counterUpdate,"\n";
+print "piwik_log_visit deleted:",$counterDelete,"\n";
 1;

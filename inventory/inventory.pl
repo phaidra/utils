@@ -269,10 +269,10 @@ foreach my $keyfrontendStats (keys %{$frontendStats}){
       }
 }
 
-print "search_pattern inserted:",$counterInsert,"\n";
-print "search_pattern updated:",$counterUpdate,"\n";
-print "search_pattern deleted:",$counterDelete,"\n";
-print "search_pattern no updated:",$counterNoUpdate,"\n";
+print "inventory inserted:",$counterInsert,"\n";
+print "inventory updated:",$counterUpdate,"\n";
+print "inventory deleted:",$counterDelete,"\n";
+print "inventory no updated:",$counterNoUpdate,"\n";
 
 
 1;

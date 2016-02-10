@@ -48,7 +48,7 @@ my $dbhFrontendStats = DBI->connect(
                                 
                                 
                                 
-#connect to phairaUsersDB database      
+#connect to phaidraUsersDB database      
 
 my @phaidraInstances = @{$config->{phaidra_instances}};
 
@@ -60,10 +60,10 @@ foreach (@phaidraInstances){
 }
 
 
-my $hostPhairaUsersDB     = $curentPhaidraInstance->{phairaUsersDB}->{host};
-my $dbNamePhairaUsersDB   = $curentPhaidraInstance->{phairaUsersDB}->{dbName};
-my $userPhairaUsersDB     = $curentPhaidraInstance->{phairaUsersDB}->{user};
-my $passPhairaUsersDB     = $curentPhaidraInstance->{phairaUsersDB}->{pass};
+my $hostPhairaUsersDB     = $curentPhaidraInstance->{phaidraUsersDB}->{host};
+my $dbNamePhairaUsersDB   = $curentPhaidraInstance->{phaidraUsersDB}->{dbName};
+my $userPhairaUsersDB     = $curentPhaidraInstance->{phaidraUsersDB}->{user};
+my $passPhairaUsersDB     = $curentPhaidraInstance->{phaidraUsersDB}->{pass};
 
 my $dbhPhairaUsersDB = DBI->connect(          
                                   "dbi:mysql:dbname=$dbNamePhairaUsersDB;host=$hostPhairaUsersDB", 
@@ -83,12 +83,12 @@ while (my @frontendStatsDbrow = $sthFrontendStats->fetchrow_array){
 }
 
 
-#read from phairaUsersDB database 
+#read from phaidraUsersDB database 
 my $sthPhairaUsersDB = $dbhPhairaUsersDB->prepare( "SELECT SID, last_update FROM search_pattern" );
 $sthPhairaUsersDB->execute();
-my $phairaUsersDB;
-while (my @phairaUsersDBrow = $sthPhairaUsersDB->fetchrow_array){
-    $phairaUsersDB->{$phairaUsersDBrow[0]} = $phairaUsersDBrow[1];
+my $phaidraUsersDB;
+while (my @phaidraUsersDBrow = $sthPhairaUsersDB->fetchrow_array){
+    $phaidraUsersDB->{$phaidraUsersDBrow[0]} = $phaidraUsersDBrow[1];
 }
 
 
@@ -104,16 +104,16 @@ sub insertRecord($){
     print "Inserting sid:",$sid,"\n";
     my $sthPhairaUsersDB_insert = $dbhPhairaUsersDB->prepare( "SELECT * FROM search_pattern where SID=?" );
     $sthPhairaUsersDB_insert->execute($sid);
-    while (my @phairaUsersDB_insert_Dbrow = $sthPhairaUsersDB_insert->fetchrow_array){
+    while (my @phaidraUsersDB_insert_Dbrow = $sthPhairaUsersDB_insert->fetchrow_array){
           my $frontendStats_insert_query = "INSERT INTO `search_pattern` (`SID`, `idsite`, `name`, `session_id`, `pattern`, `last_update`) VALUES (?, ?, ?, ?, ?, ?);";  
           my $sthFrontendStats_insert = $dbhFrontendStats->prepare($frontendStats_insert_query);
           $sthFrontendStats_insert->execute(
-                                            $phairaUsersDB_insert_Dbrow[0],
+                                            $phaidraUsersDB_insert_Dbrow[0],
                                             $instanceNumber,
-                                            $phairaUsersDB_insert_Dbrow[1],
-                                            $phairaUsersDB_insert_Dbrow[2],
-                                            $phairaUsersDB_insert_Dbrow[3],
-                                            $phairaUsersDB_insert_Dbrow[4]
+                                            $phaidraUsersDB_insert_Dbrow[1],
+                                            $phaidraUsersDB_insert_Dbrow[2],
+                                            $phaidraUsersDB_insert_Dbrow[3],
+                                            $phaidraUsersDB_insert_Dbrow[4]
                                            );
           $sthFrontendStats_insert->finish();
     }
@@ -132,15 +132,15 @@ sub updateRecord($){
     print "Updating sid:",$sid,"\n"; 
     my $sthPhairaUsersDB_update = $dbhPhairaUsersDB->prepare( "SELECT * FROM search_pattern where SID=?" );
     $sthPhairaUsersDB_update->execute($sid);
-    while (my @phairaUsersDB_update_Dbrow = $sthPhairaUsersDB_update->fetchrow_array){
+    while (my @phaidraUsersDB_update_Dbrow = $sthPhairaUsersDB_update->fetchrow_array){
           my $frontendStats_update_query = "UPDATE search_pattern set  name=?, session_id=?, pattern=?, last_update=? where SID=?;";  
           my $sthFrontendStats_update = $dbhFrontendStats->prepare($frontendStats_update_query);
           $sthFrontendStats_update->execute(
-                                            $phairaUsersDB_update_Dbrow[1],
-                                            $phairaUsersDB_update_Dbrow[2],
-                                            $phairaUsersDB_update_Dbrow[3],
-                                            $phairaUsersDB_update_Dbrow[4],
-                                            $phairaUsersDB_update_Dbrow[0]
+                                            $phaidraUsersDB_update_Dbrow[1],
+                                            $phaidraUsersDB_update_Dbrow[2],
+                                            $phaidraUsersDB_update_Dbrow[3],
+                                            $phaidraUsersDB_update_Dbrow[4],
+                                            $phaidraUsersDB_update_Dbrow[0]
                                            );
           $sthFrontendStats_update->finish();
     }
@@ -171,9 +171,9 @@ sub deleteRecord($){
 my $counterInsert = 0;
 my $counterUpdate = 0;
 my $counterDelete = 0;
-foreach my $keyPhairaUsersDB (keys %{$phairaUsersDB}){
+foreach my $keyPhairaUsersDB (keys %{$phaidraUsersDB}){
      if(defined $frontendStats->{$keyPhairaUsersDB}){
-          if($frontendStats->{$keyPhairaUsersDB} lt $phairaUsersDB->{$keyPhairaUsersDB}){
+          if($frontendStats->{$keyPhairaUsersDB} lt $phaidraUsersDB->{$keyPhairaUsersDB}){
                 updateRecord($keyPhairaUsersDB);
                 $counterUpdate++;
           }
@@ -184,7 +184,7 @@ foreach my $keyPhairaUsersDB (keys %{$phairaUsersDB}){
 }
 
 foreach my $keyfrontendStats (keys %{$frontendStats}){
-      if(not defined $phairaUsersDB->{$keyfrontendStats}){
+      if(not defined $phaidraUsersDB->{$keyfrontendStats}){
           deleteRecord($keyfrontendStats); 
           $counterDelete++;
       }

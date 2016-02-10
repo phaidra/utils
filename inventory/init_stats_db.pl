@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 use warnings; 
 use strict;
@@ -9,9 +9,20 @@ use Config::JSON;
 use DBI;
 
 
+=pod
+
+=head1 Generate thumbnails 
+
+perl inventory.pl path/to/config/config.json
+
+=cut
+
+
 my $pathToFile = $ARGV[0];
-if(not defined $pathToFile) {$pathToFile = '/home/michal/Documents/code/area42/user/mf/statistics2016/bin/init.json'}
-print '$pathToFile:', $pathToFile."\n";
+if(not defined $pathToFile) {
+     print "Please enter path to config as a parameter. e.g: perl inventory.pl my/path/to/config/config.json";
+     system ("perldoc '$0'"); exit (0); 
+}
 
 my $config = Config::JSON->new(pathToFile => $pathToFile);
 $config = $config->{config};

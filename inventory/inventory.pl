@@ -97,13 +97,10 @@ while (my $doc = $dataset->next){
         ){
            my $updated_at = 0;
            $updated_at = strftime("%Y-%m-%d %H:%M:%S", localtime($doc->{'updated_at'})) if defined $doc->{'updated_at'};
-           my $mtime = 0;
-           $mtime = strftime("%Y-%m-%d %H:%M:%S", localtime($doc->{'mtime'})) if defined $doc->{'mtime'};
-     
+           
            my $element;
            $element->{pid} = $doc->{'pid'};
-           $element->{mtime} = $mtime;
-           $element->{updated_at} = $updated_at;
+           #$element->{mtime} = $mtime;
            $element->{fs_size} = $doc->{'fs_size'};
            $element->{red_code} = $doc->{'red_code'};
            $element->{mimetype} = $doc->{'mimetype'};
@@ -111,6 +108,9 @@ while (my $doc = $dataset->next){
            $element->{ownerId} = $doc->{'ownerId'};
            $element->{model} = $doc->{'model'};
            $element->{'state'} = $doc->{'state'};
+           $element->{createdDate} = $doc->{'createdDate'};            #time when fedora object is created from taken from foxml
+           $element->{lastModifiedDate} = $doc->{'lastModifiedDate'};  #time when fedora object is modified from taken from foxml
+           $element->{updated_at} = $updated_at;                       #time when mongoDB record is updated ts
      
            $mongoDbData->{$doc->{'pid'}} = $element;
      }
@@ -118,7 +118,7 @@ while (my $doc = $dataset->next){
 my $numberOfMongoDBRecords = keys %{$mongoDbData};
 
 #read from Frontend Statistics database
-my $sthFrontendStats = $dbhFrontendStats->prepare( "SELECT oid, modified  FROM  inventory" );
+my $sthFrontendStats = $dbhFrontendStats->prepare( "SELECT oid, ts  FROM  inventory" );
 $sthFrontendStats->execute();
 my $frontendStats;
 while (my @frontendStatsDbrow = $sthFrontendStats->fetchrow_array){
@@ -179,7 +179,7 @@ sub insertRecord($){
     my $title = getTitle($pid);
     print "Inserting pid:",$pid,"\n";
     
-    my $frontendStats_insert_query = "INSERT INTO `inventory` (`idsite`, `oid`, `cmodel`, `mimetype`, `owner`, `state`, `filesize`, `redcode`, `acccode`, `created`, `modified`, `title`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+    my $frontendStats_insert_query = "INSERT INTO `inventory` (`idsite`, `oid`, `cmodel`, `mimetype`, `owner`, `state`, `filesize`, `redcode`, `acccode`, `ts`, `created`, `modified`, `title`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
     my $sthFrontendStats_insert = $dbhFrontendStats->prepare($frontendStats_insert_query);
     $sthFrontendStats_insert->execute(
                                             $instanceNumber,
@@ -191,8 +191,9 @@ sub insertRecord($){
                                             $mongoDbData->{$pid}->{fs_size},
                                             $mongoDbData->{$pid}->{red_code},
                                             $mongoDbData->{$pid}->{acc_code},
-                                            $mongoDbData->{$pid}->{mtime},
                                             $mongoDbData->{$pid}->{updated_at},
+                                            $mongoDbData->{$pid}->{createdDate},
+                                            $mongoDbData->{$pid}->{lastModifiedDate},
                                             $title
                                      );
     if ( $sthFrontendStats_insert->err ){
@@ -213,7 +214,7 @@ sub updateRecord($){
     my $title = getTitle($pid);
     
     print "Updating pid:",$pid,"\n";
-    my $frontendStats_update_query = "UPDATE inventory set  cmodel=?, mimetype=?, owner=?, state=?, filesize=?, redcode=?, acccode=?, created=?, modified=?, title=? where oid=?;";  
+    my $frontendStats_update_query = "UPDATE inventory set  cmodel=?, mimetype=?, owner=?, state=?, filesize=?, redcode=?, acccode=?, ts=?, created=?, modified=?, title=? where oid=?;";  
     my $sthFrontendStats_update = $dbhFrontendStats->prepare($frontendStats_update_query);
     
     $sthFrontendStats_update->execute(
@@ -224,8 +225,9 @@ sub updateRecord($){
                                             $mongoDbData->{$pid}->{fs_size},
                                             $mongoDbData->{$pid}->{red_code},
                                             $mongoDbData->{$pid}->{acc_code},
-                                            $mongoDbData->{$pid}->{mtime},
                                             $mongoDbData->{$pid}->{updated_at},
+                                            $mongoDbData->{$pid}->{createdDate},
+                                            $mongoDbData->{$pid}->{lastModifiedDate},
                                             $title,
                                             $pid
                                            );

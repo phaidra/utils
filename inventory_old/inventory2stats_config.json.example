@@ -1,5 +1,7 @@
 {
 
+  "addtitle": 1,
+
   "api": {
     "url":"https://phaidra-api-url"
   },

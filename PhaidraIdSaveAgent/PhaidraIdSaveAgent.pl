@@ -155,8 +155,7 @@ sub has_id {
   				if($id->{id} eq $oid){  				
   					return $oid;
   				}
-  			}
-  			
+  			}  			
   		}
     	return '';
 	}else{

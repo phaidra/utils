@@ -33,18 +33,18 @@ my $bytes = slurp $configpath;
 my $config = decode_json($bytes);
 
 my $since;
-my $irma_map_id;
+my @irma_map_ids;
 while (defined (my $arg= shift (@ARGV)))
 {
   if ($arg =~ /^-/)
   {
   	   if ($arg eq '-since') { $since = shift (@ARGV); }
-  	elsif ($arg eq '-irma-map-id') { $irma_map_id = shift (@ARGV); }
+  	elsif ($arg eq '-irma-map-id') { @irma_map_ids= @ARGV; @ARGV= (); }
     else { system ("perldoc '$0'"); exit (0); }
   }
 }
 
-unless(defined($since) || defined($irma_map_id)){
+unless(defined($since) || @irma_map_ids){
 	print "[".scalar localtime."] ", "Error: Missing parameters.\n";
 	system ("perldoc '$0'"); exit (0);
 }
@@ -61,13 +61,25 @@ while( my( $instance, $value ) = each %{$config->{phaidra_instances}} ){
 
 # select the records
 my @records;
-if(defined($irma_map_id)){
+my $col = $irma_mongo->get_collection('irma.map');
+if(@irma_map_ids){
+
+	foreach my $irma_map_id (@irma_map_ids)
+	{
 	print "[".scalar localtime."] ", "processing IRMA record id $irma_map_id\n"; 
-	my $rec = $irma_mongo->get_collection('irma.map')->find_one({'_id' => MongoDB::OID->new(value => $irma_map_id)});
+	my $rec = $col->find_one({'_id' => MongoDB::OID->new(value => $irma_map_id)});
 	push @records, $rec if defined $rec;
+	}
 }elsif(defined($since)){
+
+	   if ($since eq 'yesterday') { $since= time()-86400; }
+	elsif ($since =~ m#(\d+) days#) { my $days= $1; $since= time()-86400*$days; }
+
+	my $find= {};
+	if ($since > 0) { $find->{'_created'}= {'$gt' => $since }; }
+
 	print "[".scalar localtime."] ", "processing IRMA records since $since [".strftime("%m/%d/%Y %H:%M:%S",localtime($since))."]\n"; 
-	my $recs = $irma_mongo->get_collection('irma.map')->find({'_created' => {'$gt' => $since } } );
+	my $recs = $col->find($find);
 	while (my $rec = $recs->next) {
 		push @records, $rec if defined $rec;
 	}	

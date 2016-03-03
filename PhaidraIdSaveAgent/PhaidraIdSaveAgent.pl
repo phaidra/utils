@@ -81,7 +81,7 @@ for my $r (@records){
 	$i++;
 
 	# check if this id has a phaidra URL
-	unless ($r->{url} =~ /^http(s)?:\/\/([\w\.\-]+)\/(o:\d+)$/g){
+	if (!exists($r->{url}) || !($r->{url} =~ /^http(s)?:\/\/([\w\.\-]+)\/(o:\d+)$/g)){
 		print "[".scalar localtime."] ", "processing [$i/$rec_cnt] url[".$r->{url}."] not a phaidra url, skipping\n"; 
 		next;
 	}

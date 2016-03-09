@@ -138,7 +138,10 @@ print "time:", $latestTimeFrontendStats, "\n";
 $latestTimeFrontendStats = $latestTimeFrontendStats + 1 - 1;
 
 
-my $frontendStats_upsert_query = "INSERT INTO `inventory`     (
+$dbhFrontendStats->{AutoCommit} = 0;  # enable transactions
+$dbhFrontendStats->{RaiseError} = 1;
+eval {
+         my $frontendStats_upsert_query = "INSERT INTO `inventory`     (
                                                                  `idsite`, 
                                                                  `oid`, 
                                                                  `cmodel`, 
@@ -169,37 +172,39 @@ my $frontendStats_upsert_query = "INSERT INTO `inventory`     (
                                                                         modified = values(modified),
                                                                         title = values(title)
                                                       ";
-my $sthFrontendStats_upsert = $dbhFrontendStats->prepare($frontendStats_upsert_query);
+          my $sthFrontendStats_upsert = $dbhFrontendStats->prepare($frontendStats_upsert_query);
 
 
-#read data from mongoDb, only newer then $latestTimeFrontendStats
-my $dataset    = $collection->query({ updated_at => { '$gte' => $latestTimeFrontendStats } })->sort( { updated_at => 1 } );
-my $counterUpsert = 0;
-
-while (my $doc = $dataset->next){
-     if(
-         $doc->{'model'} eq 'Picture' or
-         $doc->{'model'} eq 'PDFDocument' or
-         $doc->{'model'} eq 'Container' or 
-         $doc->{'model'} eq 'Resource' or 
-         $doc->{'model'} eq 'Collection' or 
-         $doc->{'model'} eq 'Asset' or 
-         $doc->{'model'} eq 'Video' or 
-         $doc->{'model'} eq 'Audio' or 
-         $doc->{'model'} eq 'LaTeXDocument' or 
-         $doc->{'model'} eq 'Page' or 
-         $doc->{'model'} eq 'Book' or 
-         $doc->{'model'} eq 'Paper'
-        ){
-           my $updated_at = 0;
-           $updated_at = strftime("%Y-%m-%d %H:%M:%S", localtime($doc->{'updated_at'})) if defined $doc->{'updated_at'};
+          #read data from mongoDb, only newer then $latestTimeFrontendStats
+          #my $dataset    = $collection->query({ updated_at => { '$gte' => $latestTimeFrontendStats } })->sort( { updated_at => 1 } );
+          my $dataset    = $collection->query({ updated_at => { '$gte' => $latestTimeFrontendStats } });
           
-           print "Upserting $doc->{'pid'} ... Record's 'updated_at' :",$updated_at,"\n";
+          my $counterUpsert = 0;
+
+          while (my $doc = $dataset->next){
+             if(
+                $doc->{'model'} eq 'Picture' or
+                $doc->{'model'} eq 'PDFDocument' or
+                $doc->{'model'} eq 'Container' or 
+                $doc->{'model'} eq 'Resource' or 
+                $doc->{'model'} eq 'Collection' or 
+                $doc->{'model'} eq 'Asset' or 
+                $doc->{'model'} eq 'Video' or 
+                $doc->{'model'} eq 'Audio' or 
+                $doc->{'model'} eq 'LaTeXDocument' or 
+                $doc->{'model'} eq 'Page' or 
+                $doc->{'model'} eq 'Book' or 
+                $doc->{'model'} eq 'Paper'
+              ){
+                  my $updated_at = 0;
+                  $updated_at = strftime("%Y-%m-%d %H:%M:%S", localtime($doc->{'updated_at'})) if defined $doc->{'updated_at'};
+          
+                  print "Upserting $doc->{'pid'}... Record's 'updated_at' :",$updated_at,"\n";
            
-           my $title = "";
-           $title = getTitle($doc->{'pid'}) if defined $doc->{'pid'};
+                  my $title = "";
+                  $title = getTitle($doc->{'pid'}) if defined $doc->{'pid'};
        
-           $sthFrontendStats_upsert->execute(
+                  $sthFrontendStats_upsert->execute(
                                             $instanceNumber,
                                             $doc->{'pid'},
                                             $doc->{'model'},
@@ -214,16 +219,24 @@ while (my $doc = $dataset->next){
                                             $doc->{'lastModifiedDate'}, #time when fedora object is modified taken from foxml
                                             $title
                                            );
-            print "Error upserting record with PID $doc->{'pid'} :", $sthFrontendStats_upsert->errstr, "\n" if $sthFrontendStats_upsert->errstr;
-            $counterUpsert++;
-     }else{
-           print "Object $doc->{'pid'} not upserted. Wrong model: $doc->{'model'} !";
-     }
+                      print "Error upserting record with PID $doc->{'pid'} :", $sthFrontendStats_upsert->errstr, "\n" if $sthFrontendStats_upsert->errstr;
+                   $counterUpsert++;
+               }else{
+                      print "Object $doc->{'pid'} not upserted. Wrong model: $doc->{'model'} !";
+               }
+      }
+       
+      $dbhFrontendStats->commit;
+      print "inventory upserted:",$counterUpsert,"\n";
+};
+if ($@) {
+      print "Transaction aborted because $@";
+      eval { $dbhFrontendStats->rollback };
+          if ($@) {
+               print "Rollback aborted because $@";
+          }
 }
 
 $dbhFrontendStats->disconnect();
 
-print "inventory upserted:",$counterUpsert,"\n";
-
- 
 1;

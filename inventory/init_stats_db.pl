@@ -146,6 +146,7 @@ sub createInventory {
                   `modified` datetime NOT NULL,
                   `title` text,
                    PRIMARY KEY (`id`),
+                   UNIQUE KEY `idsite_2` (`idsite`,`oid`),
                    KEY `oida` (`oid`),
                    KEY `cmodel` (`cmodel`),
                    KEY `owner` (`owner`),
@@ -158,6 +159,7 @@ sub createInventory {
    $sth->execute();
    $sth->finish;
 }
+
 
 sub search_pattern {
 

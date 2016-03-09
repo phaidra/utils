@@ -37,7 +37,7 @@ if(not defined $pathToFile) {
      system ("perldoc '$0'"); exit (0); 
 }
 if(not defined $instanceNumber) {
-     print "Please enter path to config as second parameter. e.g: perl inventory.pl my/path/to/config/config.json 4";
+     print "Please enter instance number as second parameter. e.g: perl inventory.pl my/path/to/config/config.json 4";
      system ("perldoc '$0'"); exit (0); 
 }
 
@@ -74,7 +74,7 @@ my $connestionString = 'mongodb://'.$curentPhaidraInstance->{mongoDb}->{user}.':
                                     $curentPhaidraInstance->{mongoDb}->{host}.'/'.
                                     $curentPhaidraInstance->{mongoDb}->{dbName};
 my $client     = MongoDB->connect($connestionString);
-my $collection = $client->ns('ph001.foxml.ds');
+my $collection = $client->ns('ph001.foxml.ds'); # FIXME: ph001 is specific to a certain instance
 
 
 

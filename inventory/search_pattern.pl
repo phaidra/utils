@@ -21,6 +21,7 @@ perl search_pattern.pl path/to/config/config.json 4
 my $pathToFile = $ARGV[0];
 my $instanceNumber = $ARGV[1];
 
+
 if(not defined $pathToFile) {
      print "Please enter path to config as first parameter. e.g: perl search_pattern.pl my/path/to/config/config.json 4";
      system ("perldoc '$0'"); exit (0); 
@@ -30,6 +31,8 @@ if(not defined $instanceNumber) {
      print "Please enter path to config as second parameter. e.g: perl search_pattern.pl my/path/to/config/config.json 4";
      system ("perldoc '$0'"); exit (0); 
 }
+
+
 
 my $config = Config::JSON->new(pathToFile => $pathToFile);
 $config = $config->{config};
@@ -49,7 +52,6 @@ my $dbhFrontendStats = DBI->connect(
                                 
                                 
 #connect to phaidraUsersDB database      
-
 my @phaidraInstances = @{$config->{phaidra_instances}};
 
 my $curentPhaidraInstance;
@@ -74,125 +76,53 @@ my $dbhPhairaUsersDB = DBI->connect(
                                 
 
                                 
-#read from Frontend Statistics database
-my $sthFrontendStats = $dbhFrontendStats->prepare( "SELECT SID, last_update  FROM search_pattern" );
+#get record with latest time from Frontend Statistics database
+my $latestTimeFrontendStats = 0;
+my $sthFrontendStats = $dbhFrontendStats->prepare( "SELECT last_update FROM  search_pattern ORDER BY last_update DESC LIMIT 1;" );
 $sthFrontendStats->execute();
-my $frontendStats;
 while (my @frontendStatsDbrow = $sthFrontendStats->fetchrow_array){
-    $frontendStats->{$frontendStatsDbrow[0]} = $frontendStatsDbrow[1];
-}
-
-
-#read from phaidraUsersDB database 
-my $sthPhairaUsersDB = $dbhPhairaUsersDB->prepare( "SELECT SID, last_update FROM search_pattern" );
+    $latestTimeFrontendStats =  $frontendStatsDbrow[0];
+} 
+print "latestTimeFrontendStats:\n",$latestTimeFrontendStats,"\n";                                
+#exit;   
+#read PhaidraUser database with newer or equal $latestTimeFrontendStats and upsert new records to Frontend Statistics database
+my $sthPhairaUsersDB = $dbhPhairaUsersDB->prepare( "SELECT * FROM search_pattern where last_update >= \"$latestTimeFrontendStats\" ORDER BY last_update ASC" );
 $sthPhairaUsersDB->execute();
-my $phaidraUsersDB;
-while (my @phaidraUsersDBrow = $sthPhairaUsersDB->fetchrow_array){
-    $phaidraUsersDB->{$phaidraUsersDBrow[0]} = $phaidraUsersDBrow[1];
-}
+my $counterUpsert;
+my $frontendStats_upsert_query = "INSERT INTO `search_pattern` (`SID`, `idsite`, `name`, `session_id`, `pattern`, `last_update`)
+                                                     values(?, ?, ?, ?, ?, ?) 
+                                                     on duplicate key update
+                                                                        idsite = values(idsite),
+                                                                        name = values(name),
+                                                                        session_id = values(session_id),
+                                                                        pattern = values(pattern),
+                                                                        last_update = values(last_update)
+                                                      ";
+my $sthFrontendStats_upsert = $dbhFrontendStats->prepare($frontendStats_upsert_query);
 
+while (my @phairaUsers_upsert_Dbrow = $sthPhairaUsersDB->fetchrow_array){
+      print "Upserting SID:",$phairaUsers_upsert_Dbrow[0],"\n";
+      print "Upserting SID time:",$phairaUsers_upsert_Dbrow[4],"\n";
 
-=head1
-
-  Insert new record into Frontend statistics db 
-
-=cut
-
-sub insertRecord($){
-    
-    my $sid = shift;
-    print "Inserting sid:",$sid,"\n";
-    my $sthPhairaUsersDB_insert = $dbhPhairaUsersDB->prepare( "SELECT * FROM search_pattern where SID=?" );
-    $sthPhairaUsersDB_insert->execute($sid);
-    while (my @phaidraUsersDB_insert_Dbrow = $sthPhairaUsersDB_insert->fetchrow_array){
-          my $frontendStats_insert_query = "INSERT INTO `search_pattern` (`SID`, `idsite`, `name`, `session_id`, `pattern`, `last_update`) VALUES (?, ?, ?, ?, ?, ?);";  
-          my $sthFrontendStats_insert = $dbhFrontendStats->prepare($frontendStats_insert_query);
-          $sthFrontendStats_insert->execute(
-                                            $phaidraUsersDB_insert_Dbrow[0],
+      $sthFrontendStats_upsert->execute(
+                                            $phairaUsers_upsert_Dbrow[0],
                                             $instanceNumber,
-                                            $phaidraUsersDB_insert_Dbrow[1],
-                                            $phaidraUsersDB_insert_Dbrow[2],
-                                            $phaidraUsersDB_insert_Dbrow[3],
-                                            $phaidraUsersDB_insert_Dbrow[4]
+                                            $phairaUsers_upsert_Dbrow[1],
+                                            $phairaUsers_upsert_Dbrow[2],
+                                            $phairaUsers_upsert_Dbrow[3],
+                                            $phairaUsers_upsert_Dbrow[4]
                                            );
-          $sthFrontendStats_insert->finish();
-    }
-    $sthPhairaUsersDB_insert->finish(); 
-}
+     print "error writing record with SID: $phairaUsers_upsert_Dbrow[0] .", $dbhFrontendStats->errstr, "\n" if $dbhFrontendStats->errstr;
+     
 
-=head1
-
-  Update record in Frontend statistics db
-
-=cut
-
-sub updateRecord($){
-    
-    my $sid = shift;
-    print "Updating sid:",$sid,"\n"; 
-    my $sthPhairaUsersDB_update = $dbhPhairaUsersDB->prepare( "SELECT * FROM search_pattern where SID=?" );
-    $sthPhairaUsersDB_update->execute($sid);
-    while (my @phaidraUsersDB_update_Dbrow = $sthPhairaUsersDB_update->fetchrow_array){
-          my $frontendStats_update_query = "UPDATE search_pattern set  name=?, session_id=?, pattern=?, last_update=? where SID=?;";  
-          my $sthFrontendStats_update = $dbhFrontendStats->prepare($frontendStats_update_query);
-          $sthFrontendStats_update->execute(
-                                            $phaidraUsersDB_update_Dbrow[1],
-                                            $phaidraUsersDB_update_Dbrow[2],
-                                            $phaidraUsersDB_update_Dbrow[3],
-                                            $phaidraUsersDB_update_Dbrow[4],
-                                            $phaidraUsersDB_update_Dbrow[0]
-                                           );
-          $sthFrontendStats_update->finish();
-    }
-    $sthPhairaUsersDB_update->finish(); 
-
-}
-
-=head1
-
-  Delete record from Frontend statistics db
-
-=cut
-
-sub deleteRecord($){
-    
-    my $sid = shift;
-    print "Deleting sid:",$sid,"\n";
-    my $frontendStats_delete_query = "DELETE from search_pattern where SID=?;";
-    my $sthFrontendStats_delete = $dbhFrontendStats->prepare($frontendStats_delete_query);
-    $sthFrontendStats_delete->execute($sid);
-    $sthFrontendStats_delete->finish();
-}
-
-#####################################
-#######  Main  ######################
-##################################### 
-# iterate
-my $counterInsert = 0;
-my $counterUpdate = 0;
-my $counterDelete = 0;
-foreach my $keyPhairaUsersDB (keys %{$phaidraUsersDB}){
-     if(defined $frontendStats->{$keyPhairaUsersDB}){
-          if($frontendStats->{$keyPhairaUsersDB} lt $phaidraUsersDB->{$keyPhairaUsersDB}){
-                updateRecord($keyPhairaUsersDB);
-                $counterUpdate++;
-          }
-     }else{
-          insertRecord($keyPhairaUsersDB);
-          $counterInsert++;
-     }
-}
-
-foreach my $keyfrontendStats (keys %{$frontendStats}){
-      if(not defined $phaidraUsersDB->{$keyfrontendStats}){
-          deleteRecord($keyfrontendStats); 
-          $counterDelete++;
-      }
+    $counterUpsert++;
 }
 
 
+$dbhPhairaUsersDB->disconnect();
+$dbhFrontendStats->disconnect();
 
-print "search_pattern inserted:",$counterInsert,"\n";
-print "search_pattern updated:",$counterUpdate,"\n";
-print "search_pattern deleted:",$counterDelete,"\n";
+print "search_pattern upsert:",$counterUpsert,"\n";
+   
+
 1;

@@ -13,6 +13,9 @@ use POSIX;
 use POSIX qw( strftime );
 use JSON;
 
+use Benchmark;
+use Time::HiRes qw/tv_interval gettimeofday/; 
+
 =pod
 
 =head1 Generate thumbnails 
@@ -23,10 +26,12 @@ e.g. perl inventory.pl path/to/config/config.json 4
 
 =cut
 
+my @pidWithTitleProblem;
 
 # get config data
 my $pathToFile = $ARGV[0];
 my $instanceNumber = $ARGV[1];
+
 if(not defined $pathToFile) {
      print "Please enter path to config as first parameter. e.g: perl inventory.pl my/path/to/config/config.json 4";
      system ("perldoc '$0'"); exit (0); 
@@ -52,13 +57,10 @@ my $servicesTriples =  $curentPhaidraInstance->{services_triples};
 
 
 #connect to frontend Statistics database (Hose)
-
 my $hostFrontendStats     = $config->{frontendStatsMysql}->{host};
 my $dbNameFrontendStats   = $config->{frontendStatsMysql}->{dbName};
 my $userFrontendStats     = $config->{frontendStatsMysql}->{user};
 my $passFrontendStats     = $config->{frontendStatsMysql}->{pass};
-
-
 my $dbhFrontendStats = DBI->connect(          
                                   "dbi:mysql:dbname=$dbNameFrontendStats;host=$hostFrontendStats", 
                                   $userFrontendStats,
@@ -71,59 +73,11 @@ my $connestionString = 'mongodb://'.$curentPhaidraInstance->{mongoDb}->{user}.':
                                     $curentPhaidraInstance->{mongoDb}->{pass}.'@'.
                                     $curentPhaidraInstance->{mongoDb}->{host}.'/'.
                                     $curentPhaidraInstance->{mongoDb}->{dbName};
-  
 my $client     = MongoDB->connect($connestionString);
 my $collection = $client->ns('ph001.foxml.ds');
 
 
 
-#read data from mongoDb  
-my $dataset    = $collection->find();
-my $mongoDbData;
-while (my $doc = $dataset->next){
-     if(
-         $doc->{'model'} eq 'Picture' or
-         $doc->{'model'} eq 'PDFDocument' or
-         $doc->{'model'} eq 'Container' or 
-         $doc->{'model'} eq 'Resource' or 
-         $doc->{'model'} eq 'Collection' or 
-         $doc->{'model'} eq 'Asset' or 
-         $doc->{'model'} eq 'Video' or 
-         $doc->{'model'} eq 'Audio' or 
-         $doc->{'model'} eq 'LaTeXDocument' or 
-         $doc->{'model'} eq 'Page' or 
-         $doc->{'model'} eq 'Book' or 
-         $doc->{'model'} eq 'Paper'
-        ){
-           my $updated_at = 0;
-           $updated_at = strftime("%Y-%m-%d %H:%M:%S", localtime($doc->{'updated_at'})) if defined $doc->{'updated_at'};
-           
-           my $element;
-           $element->{pid} = $doc->{'pid'};
-           #$element->{mtime} = $mtime;
-           $element->{fs_size} = $doc->{'fs_size'};
-           $element->{red_code} = $doc->{'red_code'};
-           $element->{mimetype} = $doc->{'mimetype'};
-           $element->{acc_code} = $doc->{'acc_code'};
-           $element->{ownerId} = $doc->{'ownerId'};
-           $element->{model} = $doc->{'model'};
-           $element->{'state'} = $doc->{'state'};
-           $element->{createdDate} = $doc->{'createdDate'};            #time when fedora object is created from taken from foxml
-           $element->{lastModifiedDate} = $doc->{'lastModifiedDate'};  #time when fedora object is modified from taken from foxml
-           $element->{updated_at} = $updated_at;                       #time when mongoDB record is updated ts
-     
-           $mongoDbData->{$doc->{'pid'}} = $element;
-     }
-}
-my $numberOfMongoDBRecords = keys %{$mongoDbData};
-
-#read from Frontend Statistics database
-my $sthFrontendStats = $dbhFrontendStats->prepare( "SELECT oid, ts  FROM  inventory" );
-$sthFrontendStats->execute();
-my $frontendStats;
-while (my @frontendStatsDbrow = $sthFrontendStats->fetchrow_array){
-    $frontendStats->{$frontendStatsDbrow[0]} = $frontendStatsDbrow[1];
-}
 
 =head1
 
@@ -151,6 +105,7 @@ sub getTitle($){
      }
      else {
         print "Error: " . $res->status_line . "\n";
+        push @pidWithTitleProblem, $pid;
      }
 
 
@@ -166,133 +121,109 @@ sub getTitle($){
      return $title;
 }
 
-
-=head1
-
-  Insert new record into Frontend statistics db
-
-=cut
-
-sub insertRecord($){
-    
-    my $pid = shift;
-    my $title = getTitle($pid);
-    print "Inserting pid:",$pid,"\n";
-    
-    my $frontendStats_insert_query = "INSERT INTO `inventory` (`idsite`, `oid`, `cmodel`, `mimetype`, `owner`, `state`, `filesize`, `redcode`, `acccode`, `ts`, `created`, `modified`, `title`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-    my $sthFrontendStats_insert = $dbhFrontendStats->prepare($frontendStats_insert_query);
-    $sthFrontendStats_insert->execute(
-                                            $instanceNumber,
-                                            $pid,
-                                            $mongoDbData->{$pid}->{model},
-                                            $mongoDbData->{$pid}->{mimetype},
-                                            $mongoDbData->{$pid}->{ownerId},
-                                            $mongoDbData->{$pid}->{'state'},
-                                            $mongoDbData->{$pid}->{fs_size},
-                                            $mongoDbData->{$pid}->{red_code},
-                                            $mongoDbData->{$pid}->{acc_code},
-                                            $mongoDbData->{$pid}->{updated_at},
-                                            $mongoDbData->{$pid}->{createdDate},
-                                            $mongoDbData->{$pid}->{lastModifiedDate},
-                                            $title
-                                     );
-    if ( $sthFrontendStats_insert->err ){
-            print "DBI ERROR! pid:$pid: $sthFrontendStats_insert->err : $sthFrontendStats_insert->errstr \n";
-    }
-    $sthFrontendStats_insert->finish();
-}
-
-=head1
-
-  Update record in Frontend statistics db
-
-=cut
-
-sub updateRecord($){
-    
-    my $pid = shift;
-    my $title = getTitle($pid);
-    
-    print "Updating pid:",$pid,"\n";
-    my $frontendStats_update_query = "UPDATE inventory set  cmodel=?, mimetype=?, owner=?, state=?, filesize=?, redcode=?, acccode=?, ts=?, created=?, modified=?, title=? where oid=?;";  
-    my $sthFrontendStats_update = $dbhFrontendStats->prepare($frontendStats_update_query);
-    
-    $sthFrontendStats_update->execute(
-                                            $mongoDbData->{$pid}->{model},
-                                            $mongoDbData->{$pid}->{mimetype},
-                                            $mongoDbData->{$pid}->{ownerId},
-                                            $mongoDbData->{$pid}->{'state'},
-                                            $mongoDbData->{$pid}->{fs_size},
-                                            $mongoDbData->{$pid}->{red_code},
-                                            $mongoDbData->{$pid}->{acc_code},
-                                            $mongoDbData->{$pid}->{updated_at},
-                                            $mongoDbData->{$pid}->{createdDate},
-                                            $mongoDbData->{$pid}->{lastModifiedDate},
-                                            $title,
-                                            $pid
-                                           );
-    if ( $sthFrontendStats_update->err ){
-            print "DBI ERROR! pid:$pid : $sthFrontendStats_update->err : $sthFrontendStats_update->errstr \n";
-    }
-    $sthFrontendStats_update->finish();
-}
-
-=head1
-
-  Delete record from Frontend statistics db
-
-=cut
-
-sub deleteRecord($){
-    
-    my $pid = shift;
-    print "Deleting pid:",$pid,"\n";
-    my $frontendStats_delete_query = "DELETE from inventory where oid=?;";
-    my $sthFrontendStats_delete = $dbhFrontendStats->prepare($frontendStats_delete_query);
-    $sthFrontendStats_delete->execute($pid);
-    $sthFrontendStats_delete->finish();
-    if ( $sthFrontendStats_delete->err ){
-            print "DBI ERROR! pid:$pid: $sthFrontendStats_delete->err : $sthFrontendStats_delete->errstr \n";
-    }
-}
-
-
-
 #####################################
 #######  Main  ######################
 #####################################
-# iterate
-my $counterInsert = 0;
-my $counterUpdate = 0;
-my $counterNoUpdate = 0;
-my $counterDelete = 0;
-foreach my $keyMongoDbData (keys %{$mongoDbData}){
-   #if(defined $frontendStats->{$keyMongoDbData} && $frontendStats->{$keyMongoDbData}->{model} ne 'Container'){
-        if(defined $frontendStats->{$keyMongoDbData}){
-            if($frontendStats->{$keyMongoDbData} lt $mongoDbData->{$keyMongoDbData}->{updated_at}){
-                updateRecord($keyMongoDbData);
-                $counterUpdate++;
-            }else{
-              $counterNoUpdate++;
-            }
-        }else{
-            insertRecord($keyMongoDbData);
-            $counterInsert++;
-        }
-  #}
+
+
+#get record with latest time from Frontend Statistics database
+my $latestTimeFrontendStats = 0;
+my $sthFrontendStats = $dbhFrontendStats->prepare( "SELECT UNIX_TIMESTAMP(ts) FROM  inventory ORDER BY ts DESC LIMIT 1;" );
+$sthFrontendStats->execute();
+while (my @frontendStatsDbrow = $sthFrontendStats->fetchrow_array){
+    $latestTimeFrontendStats =  $frontendStatsDbrow[0];
+}
+# because mongodb connector requires explicitly int type !
+print "time:", $latestTimeFrontendStats, "\n";
+$latestTimeFrontendStats = $latestTimeFrontendStats + 1 - 1;
+
+
+my $frontendStats_upsert_query = "INSERT INTO `inventory`     (
+                                                                 `idsite`, 
+                                                                 `oid`, 
+                                                                 `cmodel`, 
+                                                                 `mimetype`, 
+                                                                 `owner`, 
+                                                                 `state`, 
+                                                                 `filesize`, 
+                                                                 `redcode`, 
+                                                                 `acccode`, 
+                                                                 `ts`, 
+                                                                 `created`, 
+                                                                 `modified`, 
+                                                                 `title`
+                                                              )
+                                                     values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                                     on duplicate key update
+                                                                        idsite = values(idsite),
+                                                                        oid = values(oid),
+                                                                        cmodel = values(cmodel),
+                                                                        mimetype = values(mimetype),
+                                                                        owner = values(owner),
+                                                                        state = values(state),
+                                                                        filesize = values(filesize),
+                                                                        redcode = values(redcode),
+                                                                        acccode = values(acccode),
+                                                                        ts = values(ts),
+                                                                        created = values(created),
+                                                                        modified = values(modified),
+                                                                        title = values(title)
+                                                      ";
+my $sthFrontendStats_upsert = $dbhFrontendStats->prepare($frontendStats_upsert_query);
+
+
+#read data from mongoDb, only newer then $latestTimeFrontendStats
+my $dataset    = $collection->query({ updated_at => { '$gte' => $latestTimeFrontendStats } })->sort( { updated_at => 1 } );
+my $counterUpsert = 0;
+
+while (my $doc = $dataset->next){
+     if(
+         $doc->{'model'} eq 'Picture' or
+         $doc->{'model'} eq 'PDFDocument' or
+         $doc->{'model'} eq 'Container' or 
+         $doc->{'model'} eq 'Resource' or 
+         $doc->{'model'} eq 'Collection' or 
+         $doc->{'model'} eq 'Asset' or 
+         $doc->{'model'} eq 'Video' or 
+         $doc->{'model'} eq 'Audio' or 
+         $doc->{'model'} eq 'LaTeXDocument' or 
+         $doc->{'model'} eq 'Page' or 
+         $doc->{'model'} eq 'Book' or 
+         $doc->{'model'} eq 'Paper'
+        ){
+           my $updated_at = 0;
+           $updated_at = strftime("%Y-%m-%d %H:%M:%S", localtime($doc->{'updated_at'})) if defined $doc->{'updated_at'};
+          
+           print "Upserting $doc->{'pid'} ... Record's 'updated_at' :",$updated_at,"\n";
+           
+           my $title = "";
+           $title = getTitle($doc->{'pid'}) if defined $doc->{'pid'};
+       
+           $sthFrontendStats_upsert->execute(
+                                            $instanceNumber,
+                                            $doc->{'pid'},
+                                            $doc->{'model'},
+                                            $doc->{'mimetype'},
+                                            $doc->{'ownerId'},
+                                            $doc->{'state'},
+                                            $doc->{'fs_size'},
+                                            $doc->{'red_code'},
+                                            $doc->{'acc_code'},
+                                            $updated_at,                #time when mongoDB record is updated ts
+                                            $doc->{'createdDate'},      #time when fedora object is created taken from foxml
+                                            $doc->{'lastModifiedDate'}, #time when fedora object is modified taken from foxml
+                                            $title
+                                           );
+            print "Error upserting record with PID $doc->{'pid'} :", $sthFrontendStats_upsert->errstr, "\n" if $sthFrontendStats_upsert->errstr;
+            $counterUpsert++;
+     }else{
+           print "Object $doc->{'pid'} not upserted. Wrong model: $doc->{'model'} !";
+     }
 }
 
-foreach my $keyfrontendStats (keys %{$frontendStats}){
-      if(not defined $mongoDbData->{$keyfrontendStats}){
-          deleteRecord($keyfrontendStats); 
-          $counterDelete++;
-      }
-}
+$dbhFrontendStats->disconnect();
 
-print "inventory inserted:",$counterInsert,"\n";
-print "inventory updated:",$counterUpdate,"\n";
-print "inventory deleted:",$counterDelete,"\n";
-print "inventory no updated:",$counterNoUpdate,"\n";
+print "inventory upserted:",$counterUpsert,"\n";
 
 
 1;

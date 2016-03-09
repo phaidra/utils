@@ -12,7 +12,7 @@ use DBI;
 
 =pod
 
-=head1 Generate thumbnails 
+=head1 updating piwik_log_link_visit_action
 
 perl piwik_log_link_visit_action.pl path/to/config/config.json
 
@@ -30,7 +30,7 @@ my $config = Config::JSON->new(pathToFile => $pathToFile);
 $config = $config->{config};
 
 
-#connect to frontend Statistics database (Hose)
+#connect to Frontend statistics database (Hose)
 my $hostFrontendStats     = $config->{frontendStatsMysql}->{host};
 my $dbNameFrontendStats   = $config->{frontendStatsMysql}->{dbName};
 my $userFrontendStats     = $config->{frontendStatsMysql}->{user};
@@ -57,39 +57,21 @@ my $dbhPiwik = DBI->connect(
                                   { RaiseError => 1}
                            ) or die $DBI::errstr;
                                 
+
                                 
-#read from Frontend Statistics database
-my $sthFrontendStats = $dbhFrontendStats->prepare( "SELECT idlink_va, server_time  FROM piwik_log_link_visit_action" );
+#get last record from Frontend Statistics database
+my $lastRecordTimeFrontendStats = 0;
+my $sthFrontendStats = $dbhFrontendStats->prepare( "SELECT server_time FROM  piwik_log_link_visit_action ORDER BY idlink_va DESC LIMIT 1;" );
 $sthFrontendStats->execute();
-my $frontendStats;
 while (my @frontendStatsDbrow = $sthFrontendStats->fetchrow_array){
-    $frontendStats->{$frontendStatsDbrow[0]} = $frontendStatsDbrow[1];
+    $lastRecordTimeFrontendStats =  $frontendStatsDbrow[0];
 }
-
-
-#read from Piwik database
-my $sthPiwik = $dbhPiwik->prepare( "SELECT idlink_va, server_time FROM piwik_log_link_visit_action" );
+                                
+#read Piwik database newer or equal then last record from Frontend Statistics database and upsert new records to Frontend Statistics database
+my $sthPiwik = $dbhPiwik->prepare( "SELECT * FROM piwik_log_link_visit_action where server_time >= \"$lastRecordTimeFrontendStats\" ORDER BY idlink_va ASC" );
 $sthPiwik->execute();
-my $piwik_log_link_visit_action;
-while (my @piwikDBrow = $sthPiwik->fetchrow_array){
-    $piwik_log_link_visit_action->{$piwikDBrow[0]} = $piwikDBrow[1];
-}
-
-
-=head1
-
-  Insert new record into Frontend statistics db
-
-=cut
-
-sub insertRecord($){
-    
-    my $idlink_va = shift;
-    print "Inserting idvisit:",$idlink_va,"\n";
-    my $sthPiwik_insert = $dbhPiwik->prepare( "SELECT * FROM piwik_log_link_visit_action where idlink_va=?" );
-    $sthPiwik_insert->execute($idlink_va);
-    while (my @piwik_insert_Dbrow = $sthPiwik_insert->fetchrow_array){
-          my $frontendStats_insert_query = "INSERT INTO `piwik_log_link_visit_action` (
+my $counterUpsert;
+my $frontendStats_upsert_query = "INSERT INTO `piwik_log_link_visit_action` (
                                                                            `idlink_va`,
                                                                            `idsite`,
                                                                            `idvisitor`,
@@ -113,152 +95,74 @@ sub insertRecord($){
                                                                            `custom_var_k5`,
                                                                            `custom_var_v5`,
                                                                            `custom_float`
-                                                                          ) 
-                                            VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-          my $sthFrontendStats_insert = $dbhFrontendStats->prepare($frontendStats_insert_query);
-          $sthFrontendStats_insert->execute(
-                                            $piwik_insert_Dbrow[0],
-                                            $piwik_insert_Dbrow[1],
-                                            $piwik_insert_Dbrow[2],
-                                            $piwik_insert_Dbrow[3],
-                                            $piwik_insert_Dbrow[4],
-                                            $piwik_insert_Dbrow[5],
-                                            $piwik_insert_Dbrow[6],
-                                            $piwik_insert_Dbrow[7],
-                                            $piwik_insert_Dbrow[8],
-                                            $piwik_insert_Dbrow[9],
-                                            $piwik_insert_Dbrow[10],
-                                            $piwik_insert_Dbrow[11],
-                                            $piwik_insert_Dbrow[12],
-                                            $piwik_insert_Dbrow[13],
-                                            $piwik_insert_Dbrow[14],
-                                            $piwik_insert_Dbrow[15],
-                                            $piwik_insert_Dbrow[16],
-                                            $piwik_insert_Dbrow[17],
-                                            $piwik_insert_Dbrow[18],
-                                            $piwik_insert_Dbrow[19],
-                                            $piwik_insert_Dbrow[20],
-                                            $piwik_insert_Dbrow[21],
-                                            $piwik_insert_Dbrow[22]
+                                                                            )
+                                                     values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
+                                                     on duplicate key update
+                                                                        idsite = values(idsite),
+                                                                        idvisitor = values(idvisitor),
+                                                                        server_time = values(server_time),
+                                                                        idvisit = values(idvisit),
+                                                                        idaction_url = values(idaction_url),
+                                                                        idaction_url_ref = values(idaction_url_ref),
+                                                                        idaction_name = values(idaction_name),
+                                                                        idaction_name_ref = values(idaction_name_ref),
+                                                                        idaction_event_category = values(idaction_event_category),
+                                                                        idaction_event_action = values(idaction_event_action),
+                                                                        time_spent_ref_action = values(time_spent_ref_action),
+                                                                        custom_var_k1 = values(custom_var_k1),
+                                                                        custom_var_v1 = values(custom_var_v1),
+                                                                        custom_var_k2 = values(custom_var_k2),
+                                                                        custom_var_v2 = values(custom_var_v2),
+                                                                        custom_var_k3 = values(custom_var_k3),
+                                                                        custom_var_v3 = values(custom_var_v3),
+                                                                        custom_var_k4 = values(custom_var_k4),
+                                                                        custom_var_v4 = values(custom_var_v4),
+                                                                        custom_var_k5 = values(custom_var_k5),
+                                                                        custom_var_v5 = values(custom_var_v5),
+                                                                        custom_float = values(custom_float)
+                                                      ";
+my $sthFrontendStats_upsert = $dbhFrontendStats->prepare($frontendStats_upsert_query);
+
+while (my @piwik_upsert_Dbrow = $sthPiwik->fetchrow_array){
+      
+      print "Upserting idvisit:",$piwik_upsert_Dbrow[0],"\n";
+      print "Upserting idvisit time:",$piwik_upsert_Dbrow[3],"\n";
+
+      $sthFrontendStats_upsert->execute(
+                                            $piwik_upsert_Dbrow[0],
+                                            $piwik_upsert_Dbrow[1],
+                                            $piwik_upsert_Dbrow[2],
+                                            $piwik_upsert_Dbrow[3],
+                                            $piwik_upsert_Dbrow[4],
+                                            $piwik_upsert_Dbrow[5],
+                                            $piwik_upsert_Dbrow[6],
+                                            $piwik_upsert_Dbrow[7],
+                                            $piwik_upsert_Dbrow[8],
+                                            $piwik_upsert_Dbrow[9],
+                                            $piwik_upsert_Dbrow[10],
+                                            $piwik_upsert_Dbrow[11],
+                                            $piwik_upsert_Dbrow[12],
+                                            $piwik_upsert_Dbrow[13],
+                                            $piwik_upsert_Dbrow[14],
+                                            $piwik_upsert_Dbrow[15],
+                                            $piwik_upsert_Dbrow[16],
+                                            $piwik_upsert_Dbrow[17],
+                                            $piwik_upsert_Dbrow[18],
+                                            $piwik_upsert_Dbrow[19],
+                                            $piwik_upsert_Dbrow[20],
+                                            $piwik_upsert_Dbrow[21],
+                                            $piwik_upsert_Dbrow[22]
                                            );
-          $sthFrontendStats_insert->finish();
-    }
-    $sthPiwik_insert->finish(); 
-}
-
-=head1
-
-  Update record in Frontend statistics db
-
-=cut
-
-sub updateRecord($){
-    my $idlink_va = shift;
-    print "Updating idvisit:",$idlink_va,"\n";
-    my $sthPiwik_update = $dbhPiwik->prepare( "SELECT * FROM piwik_log_link_visit_action where idlink_va=?" );
-    $sthPiwik_update->execute($idlink_va);
-    while (my @piwik_update_Dbrow = $sthPiwik_update->fetchrow_array){
-          my $frontendStats_update_query = "UPDATE search_pattern set
-                                                              idsite=?,
-                                                              idvisitor=?,
-                                                              server_time=?,
-                                                              idvisit=?,
-                                                              idaction_url=?,
-                                                              idaction_url_ref=?,
-                                                              idaction_name=?,
-                                                              idaction_name_ref=?,
-                                                              idaction_event_category=?,
-                                                              idaction_event_action=?,
-                                                              time_spent_ref_action=?,
-                                                              custom_var_k1=?,
-                                                              custom_var_v1=?,
-                                                              custom_var_k2=?,
-                                                              custom_var_v2=?,
-                                                              custom_var_k3=?,
-                                                              custom_var_v3=?,
-                                                              custom_var_k4=?,
-                                                              custom_var_v4=?,
-                                                              custom_var_k5=?,
-                                                              custom_var_v5=?,
-                                                              custom_float=?
-                                                   where idlink_va=?;";
-          my $sthFrontendStats_update = $dbhFrontendStats->prepare($frontendStats_update_query);
-          $sthFrontendStats_update->execute(
-                                            $piwik_update_Dbrow[1],
-                                            $piwik_update_Dbrow[2],
-                                            $piwik_update_Dbrow[3],
-                                            $piwik_update_Dbrow[4],
-                                            $piwik_update_Dbrow[5],
-                                            $piwik_update_Dbrow[6],
-                                            $piwik_update_Dbrow[7],
-                                            $piwik_update_Dbrow[8],
-                                            $piwik_update_Dbrow[9],
-                                            $piwik_update_Dbrow[10],
-                                            $piwik_update_Dbrow[11],
-                                            $piwik_update_Dbrow[12],
-                                            $piwik_update_Dbrow[13],
-                                            $piwik_update_Dbrow[14],
-                                            $piwik_update_Dbrow[15],
-                                            $piwik_update_Dbrow[16],
-                                            $piwik_update_Dbrow[17],
-                                            $piwik_update_Dbrow[18],
-                                            $piwik_update_Dbrow[19],
-                                            $piwik_update_Dbrow[20],
-                                            $piwik_update_Dbrow[21],
-                                            $piwik_update_Dbrow[22],
-                                            $piwik_update_Dbrow[0]
-                                           );
-          $sthFrontendStats_update->finish();
-    }
-    $sthPiwik_update->finish(); 
-
-}
-
-=head1
-
-  Delete record from Frontend statistics db
-
-=cut
-
-sub deleteRecord($){
     
-    my $idlink_va = shift;
-    print "Deleting idvisit:",$idlink_va,"\n";
-    my $frontendStats_delete_query = "DELETE from piwik_log_link_visit_action where idvisit=?;";
-    my $sthFrontendStats_delete = $dbhFrontendStats->prepare($frontendStats_delete_query);
-    $sthFrontendStats_delete->execute($idlink_va);
-    $sthFrontendStats_delete->finish();
-}
 
-#####################################
-#######  Main  ######################
-#####################################
-# insert/update
-my $counterInsert = 0;
-my $counterUpdate = 0;
-my $counterDelete = 0;
-foreach my $keyPiwik_log_link_visit_action (keys %{$piwik_log_link_visit_action}){
-     if(defined $frontendStats->{$keyPiwik_log_link_visit_action}){
-          if($frontendStats->{$keyPiwik_log_link_visit_action} lt $piwik_log_link_visit_action->{$keyPiwik_log_link_visit_action}){
-                updateRecord($keyPiwik_log_link_visit_action);
-                $counterUpdate++;
-          }
-     }else{
-          insertRecord($keyPiwik_log_link_visit_action);
-          $counterInsert++;
-     }
-}
-#delete
-foreach my $keyfrontendStats (keys %{$frontendStats}){
-      if(not defined $piwik_log_link_visit_action->{$keyfrontendStats}){
-          deleteRecord($keyfrontendStats); 
-          $counterDelete++;
-      }
+    $counterUpsert++;
 }
 
 
+$dbhPiwik->disconnect();
+$dbhFrontendStats->disconnect();
 
-print "piwik_log_link_visit_action inserted:",$counterInsert,"\n";
-print "piwik_log_link_visit_action updated:",$counterUpdate,"\n";
-print "piwik_log_link_visit_action deleted:",$counterDelete,"\n";
+print "piwik_log_link_visit_action upsert:",$counterUpsert,"\n";
+
+
 1;

@@ -120,7 +120,7 @@ my $frontendStats_upsert_query = "INSERT INTO `piwik_log_link_visit_action` (
                                                                         custom_var_k5 = values(custom_var_k5),
                                                                         custom_var_v5 = values(custom_var_v5),
                                                                         custom_float = values(custom_float)
-                                                      ";
+                                                      "; 
 my $sthFrontendStats_upsert = $dbhFrontendStats->prepare($frontendStats_upsert_query);
 
 while (my @piwik_upsert_Dbrow = $sthPiwik->fetchrow_array){

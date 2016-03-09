@@ -261,7 +261,7 @@ while (my @piwik_upsert_Dbrow = $sthPiwik->fetchrow_array){
                                             $piwik_upsert_Dbrow[56]
                                            );
 
-    $counterUpsert++;
+    $counterUpsert++; 
 }
 
 $dbhPiwik->disconnect();

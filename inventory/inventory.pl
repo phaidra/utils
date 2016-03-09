@@ -225,5 +225,5 @@ $dbhFrontendStats->disconnect();
 
 print "inventory upserted:",$counterUpsert,"\n";
 
-
+ 
 1;

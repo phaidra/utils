@@ -110,7 +110,7 @@ while (my @phairaUsers_upsert_Dbrow = $sthPhairaUsersDB->fetchrow_array){
                                             $phairaUsers_upsert_Dbrow[1],
                                             $phairaUsers_upsert_Dbrow[2],
                                             $phairaUsers_upsert_Dbrow[3],
-                                            $phairaUsers_upsert_Dbrow[4]
+                                            $phairaUsers_upsert_Dbrow[4] 
                                            );
      print "error writing record with SID: $phairaUsers_upsert_Dbrow[0] .", $dbhFrontendStats->errstr, "\n" if $dbhFrontendStats->errstr;
      

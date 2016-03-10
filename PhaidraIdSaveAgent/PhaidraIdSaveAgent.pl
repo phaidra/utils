@@ -12,6 +12,7 @@
 use strict;
 use warnings;
 use Data::Dumper;
+$Data::Dumper::Indent= 1;
 use POSIX qw(strftime);
 use MongoDB;
 use Mojo::Util qw(slurp);
@@ -34,17 +35,20 @@ my $config = decode_json($bytes);
 
 my $since;
 my @irma_map_ids;
+my $job_col;
+
 while (defined (my $arg= shift (@ARGV)))
 {
   if ($arg =~ /^-/)
   {
   	   if ($arg eq '-since') { $since = shift (@ARGV); }
   	elsif ($arg eq '-irma-map-id') { @irma_map_ids= @ARGV; @ARGV= (); }
+	elsif ($arg eq '-jobs') { $job_col= shift (@ARGV); }
     else { system ("perldoc '$0'"); exit (0); }
   }
 }
 
-unless(defined($since) || @irma_map_ids){
+unless(defined($since) || @irma_map_ids || defined ($job_col)){
 	print "[".scalar localtime."] ", "Error: Missing parameters.\n";
 	system ("perldoc '$0'"); exit (0);
 }
@@ -52,10 +56,23 @@ unless(defined($since) || @irma_map_ids){
 
 my $irma_mongo = MongoDB::MongoClient->new(host => $config->{irma_mongodb}->{host}, username => $config->{irma_mongodb}->{username}, password => $config->{irma_mongodb}->{password}, db_name => $config->{irma_mongodb}->{database})->get_database($config->{irma_mongodb}->{database});
 
+if (defined ($job_col))
+{
+  my $mdb_job= $irma_mongo->get_collection ($job_col);
+  my $job= $mdb_job->find_one();
+  # print "job: ", Dumper ($job);
+  @irma_map_ids= @{$job->{'ids'}};
+  $mdb_job->remove ( { _id => $job->{_id} } );
+}
+print "irma_map_ids: ", join (' ', @irma_map_ids), "\n";
+
 my %paf_dbs;
+
+my $x_instance; # FIXME: there could be more instances; maybe each instance should be processed in one large loop
+
 while( my( $instance, $value ) = each %{$config->{phaidra_instances}} ){	
 	if(defined($value->{paf_mongodb})){
-		$paf_dbs{$instance} = MongoDB::MongoClient->new(host => $value->{paf_mongodb}->{host}, username => $value->{paf_mongodb}->{username}, password => $value->{paf_mongodb}->{password}, db_name => $value->{paf_mongodb}->{database})->get_database($value->{paf_mongodb}->{database}); 
+		$x_instance= $paf_dbs{$instance} = MongoDB::MongoClient->new(host => $value->{paf_mongodb}->{host}, username => $value->{paf_mongodb}->{username}, password => $value->{paf_mongodb}->{password}, db_name => $value->{paf_mongodb}->{database})->get_database($value->{paf_mongodb}->{database}); 
 	}
 }
 
@@ -67,9 +84,12 @@ if(@irma_map_ids){
 	foreach my $irma_map_id (@irma_map_ids)
 	{
 	print "[".scalar localtime."] ", "processing IRMA record id $irma_map_id\n"; 
-	my $rec = $col->find_one({'_id' => MongoDB::OID->new(value => $irma_map_id)});
+	  my $id= (ref($irma_map_id) eq 'MongoDB::OID') ? $irma_map_id : MongoDB::OID->new(value => $irma_map_id);
+
+	my $rec = $col->find_one({ '_id' => $id });
 	push @records, $rec if defined $rec;
 	}
+
 }elsif(defined($since)){
 
 	   if ($since eq 'yesterday') { $since= time()-86400; }
@@ -88,6 +108,16 @@ if(@irma_map_ids){
 # process the records
 my $rec_cnt = scalar @records;
 print "[".scalar localtime."] ", "found $rec_cnt records\n"; 
+
+  my $emit_batch_event= 0;
+  if ($rec_cnt >= 100 && defined($x_instance))
+  {
+    $emit_batch_event= $rec_cnt;
+    emit_batch_event($x_instance, 'id_save_batch_started', 'batch_size' => $emit_batch_event);
+  }
+
+sleep(10);
+
 my $i = 0;
 for my $r (@records){
 	$i++;
@@ -101,7 +131,7 @@ for my $r (@records){
 	my $instance = $2;
 	my $pid = $3;
 
-	print "[".scalar localtime."] ", "processing [$i/$rec_cnt] pid[$pid] hdl[".$r->{hdl}."] instance[$instance]\n"; 
+	print "[".scalar localtime."] ", "processing [$i/$rec_cnt] pid=[$pid] hdl=[".$r->{hdl}."] instance=[$instance]\n"; 
 
 	# only pick up id we support
 	my @ids;
@@ -117,6 +147,7 @@ for my $r (@records){
 	}
 
 	for my $id (@ids){
+
 		# check if id was saved
 		my $has_id = has_id($config, $instance, $pid, $id);
 		if(defined($has_id)){
@@ -132,9 +163,16 @@ for my $r (@records){
 		}else{
 			print "[".scalar localtime."] ", "error getting object ids, skipping\n"; 
 		}
+
 	}	
-	
+
 }
+
+  if ($emit_batch_event > 0)
+  {
+    emit_batch_event($x_instance, 'id_save_batch_finished', 'batch_size' => $emit_batch_event);
+  }
+
 
 exit(1);
 
@@ -171,7 +209,7 @@ sub has_id {
   		}
     	return '';
 	}else{
-		print "[".scalar localtime."] ", "ERROR searching for ids pid[$pid]:\n"; 
+		print "[".scalar localtime."] ", "ERROR searching for ids pid=[$pid]:\n"; 
 		if($tx->res->json){
 			if($tx->res->json->{alerts}){
 				print Dumper($tx->res->json->{alerts})."\n";
@@ -206,7 +244,7 @@ sub save_id {
   		print "[".scalar localtime."] ", "success\n"; 
     	return 1;
 	}else{
-		print "[".scalar localtime."] ", "ERROR adding id ".$id->{type}."[".$id->{id}."] pid[$pid]:\n"; 
+		print "[".scalar localtime."] ", "ERROR adding id ".$id->{type}."[".$id->{id}."] pid=[$pid]:\n"; 
 		if($tx->res->json){
 			if($tx->res->json->{alerts}){
 				print Dumper($tx->res->json->{alerts})."\n";
@@ -230,6 +268,19 @@ sub emit_event {
 		pid => $pid,
 		id => $id->{id},
 		url => $url
+	});
+}
+
+sub emit_batch_event {
+	my $paf_mongo = shift;
+	my $event= shift;
+
+	$paf_mongo->get_collection('events')->insert({
+		ts_iso => ts_iso(), 
+		event => $event,
+		agent => 'phaidra_id_save',
+		e => time, 
+		@_,
 	});
 }
 

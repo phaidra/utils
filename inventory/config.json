@@ -17,7 +17,9 @@
 
                                         "user": "xxxxxxxxxxxxxxxxxxxxxxx",
 
-                                        "pass": "xxxxxxxxxxxxxxxxxxxxxxx"
+                                        "pass": "xxxxxxxxxxxxxxxxxxxxxxx",
+                                        
+                                        "db_and_collection" : "xxxxxxxxxxxxxxxxxxxxxxx"
 
                                 },
                                 "phaidraUsersDB": {
@@ -28,9 +30,8 @@
 
                                         "user": "xxxxxxxxxxxxxxxxxxxxxxx",
 
-                                        "pass": "xxxxxxxxxxxxxxxxxxxxxxx",
+                                        "pass": "xxxxxxxxxxxxxxxxxxxxxxx"
                                         
-                                        "db_and_collection" : "xxxxxxxxxxxxxxxxxxxxxxx"
                                 }
 
                 }

@@ -48,8 +48,8 @@ my @phaidraInstances = @{$config->{phaidra_instances}};
 
 my $curentPhaidraInstance;
 foreach (@phaidraInstances){
-      if($_->{phaidra_instance}->{instance_number} eq $instanceNumber){
-               $curentPhaidraInstance = $_->{phaidra_instance};
+      if($_->{instance_number} eq $instanceNumber){
+               $curentPhaidraInstance = $_;
       }
 }
 

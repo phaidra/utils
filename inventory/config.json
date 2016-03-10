@@ -19,7 +19,9 @@
 
                                         "pass": "xxxxxxxxxxxxxxxxxxxxxxx",
                                         
-                                        "db_and_collection" : "xxxxxxxxxxxxxxxxxxxxxxx"
+                                        "db" : "xxxxxxxxxxxxxxxxxxxxxxx",
+                                        
+                                        "collection" : "xxxxxxxxxxxxxxxxxxxxxxx"
 
                                 },
                                 "phaidraUsersDB": {

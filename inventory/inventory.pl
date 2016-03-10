@@ -74,7 +74,8 @@ my $connestionString = 'mongodb://'.$curentPhaidraInstance->{mongoDb}->{user}.':
                                     $curentPhaidraInstance->{mongoDb}->{host}.'/'.
                                     $curentPhaidraInstance->{mongoDb}->{dbName};
 my $client     = MongoDB->connect($connestionString);
-my $collection = $client->ns($curentPhaidraInstance->{mongoDb}->{db_and_collection});
+my $dbAndCollection = $curentPhaidraInstance->{mongoDb}->{db}.'.'.$curentPhaidraInstance->{mongoDb}->{collection};
+my $collection = $client->ns($dbAndCollection);
 
 
 

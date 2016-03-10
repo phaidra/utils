@@ -2,8 +2,7 @@
         "phaidra_instances": [
 
                 {
-                        "phaidra_instance": {
-
+                        
                                 "instance_number": "xxxxxxxxxxxxxxxxxxxxxxx",
 
                                 "url": "xxxxxxxxxxxxxxxxxxxxxxx",
@@ -29,10 +28,11 @@
 
                                         "user": "xxxxxxxxxxxxxxxxxxxxxxx",
 
-                                        "pass": "xxxxxxxxxxxxxxxxxxxxxxx"
+                                        "pass": "xxxxxxxxxxxxxxxxxxxxxxx",
+                                        
+                                        "db_and_collection" : "xxxxxxxxxxxxxxxxxxxxxxx"
                                 }
 
-                        }
                 }
 
         ],

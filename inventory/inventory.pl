@@ -74,7 +74,7 @@ my $connestionString = 'mongodb://'.$curentPhaidraInstance->{mongoDb}->{user}.':
                                     $curentPhaidraInstance->{mongoDb}->{host}.'/'.
                                     $curentPhaidraInstance->{mongoDb}->{dbName};
 my $client     = MongoDB->connect($connestionString);
-my $collection = $client->ns('ph001.foxml.ds'); # FIXME: ph001 is specific to a certain instance
+my $collection = $client->ns($curentPhaidraInstance->{mongoDb}->{db_and_collection});
 
 
 

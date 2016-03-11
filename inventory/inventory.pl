@@ -178,7 +178,7 @@ eval {
 
           #read data from mongoDb, only newer then $latestTimeFrontendStats
           #my $dataset    = $collection->query({ updated_at => { '$gte' => $latestTimeFrontendStats } })->sort( { updated_at => 1 } );
-          my $dataset    = $collection->query({ updated_at => { '$gte' => $latestTimeFrontendStats } });
+          my $dataset    = $collection->query({ updated_at => { '$gt' => $latestTimeFrontendStats } });
           $dataset->immortal(1);
           
           my $counterUpsert = 0;

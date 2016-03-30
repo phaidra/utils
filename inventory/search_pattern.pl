@@ -54,18 +54,18 @@ my $dbhFrontendStats = DBI->connect(
 #connect to phaidraUsersDB database      
 my @phaidraInstances = @{$config->{phaidra_instances}};
 
-my $curentPhaidraInstance;
+my $currentPhaidraInstance;
 foreach (@phaidraInstances){
       if($_->{instance_number} eq $instanceNumber){
-               $curentPhaidraInstance = $_;
+               $currentPhaidraInstance = $_;
       }
 }
 
 
-my $hostPhairaUsersDB     = $curentPhaidraInstance->{phaidraUsersDB}->{host};
-my $dbNamePhairaUsersDB   = $curentPhaidraInstance->{phaidraUsersDB}->{dbName};
-my $userPhairaUsersDB     = $curentPhaidraInstance->{phaidraUsersDB}->{user};
-my $passPhairaUsersDB     = $curentPhaidraInstance->{phaidraUsersDB}->{pass};
+my $hostPhairaUsersDB     = $currentPhaidraInstance->{phaidraUsersDB}->{host};
+my $dbNamePhairaUsersDB   = $currentPhaidraInstance->{phaidraUsersDB}->{dbName};
+my $userPhairaUsersDB     = $currentPhaidraInstance->{phaidraUsersDB}->{user};
+my $passPhairaUsersDB     = $currentPhaidraInstance->{phaidraUsersDB}->{pass};
 
 my $dbhPhairaUsersDB = DBI->connect(          
                                   "dbi:mysql:dbname=$dbNamePhairaUsersDB;host=$hostPhairaUsersDB", 

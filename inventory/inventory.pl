@@ -13,8 +13,8 @@ use POSIX;
 use POSIX qw( strftime );
 use JSON;
 
-use Benchmark;
-use Time::HiRes qw/tv_interval gettimeofday/; 
+#use Benchmark;
+#use Time::HiRes qw/tv_interval gettimeofday/; 
 
 =pod
 
@@ -46,14 +46,14 @@ $config = $config->{config};
 
 my @phaidraInstances = @{$config->{phaidra_instances}};
 
-my $curentPhaidraInstance;
+my $currentPhaidraInstance;
 foreach (@phaidraInstances){
       if($_->{instance_number} eq $instanceNumber){
-               $curentPhaidraInstance = $_;
+               $currentPhaidraInstance = $_;
       }
 }
 
-my $servicesTriples =  $curentPhaidraInstance->{services_triples};
+my $servicesTriples =  $currentPhaidraInstance->{services_triples};
 
 
 #connect to frontend Statistics database (Hose)
@@ -69,12 +69,12 @@ my $dbhFrontendStats = DBI->connect(
                                 ) or die $DBI::errstr;
                                 
 #connect to mongoDb
-my $connestionString = 'mongodb://'.$curentPhaidraInstance->{mongoDb}->{user}.':'.
-                                    $curentPhaidraInstance->{mongoDb}->{pass}.'@'.
-                                    $curentPhaidraInstance->{mongoDb}->{host}.'/'.
-                                    $curentPhaidraInstance->{mongoDb}->{dbName};
+my $connestionString = 'mongodb://'.$currentPhaidraInstance->{mongoDb}->{user}.':'.
+                                    $currentPhaidraInstance->{mongoDb}->{pass}.'@'.
+                                    $currentPhaidraInstance->{mongoDb}->{host}.'/'.
+                                    $currentPhaidraInstance->{mongoDb}->{dbName};
 my $client     = MongoDB->connect($connestionString);
-my $dbAndCollection = $curentPhaidraInstance->{mongoDb}->{db}.'.'.$curentPhaidraInstance->{mongoDb}->{collection};
+my $dbAndCollection = $currentPhaidraInstance->{mongoDb}->{dbName}.'.'.$currentPhaidraInstance->{mongoDb}->{collection};
 my $collection = $client->ns($dbAndCollection);
 
 
@@ -129,11 +129,12 @@ sub getTitle($){
 
 #get record with latest time from Frontend Statistics database
 my $latestTimeFrontendStats = 0;
-my $sthFrontendStats = $dbhFrontendStats->prepare( "SELECT UNIX_TIMESTAMP(ts) FROM  inventory ORDER BY ts DESC LIMIT 1;" );
+my $sthFrontendStats = $dbhFrontendStats->prepare( "SELECT UNIX_TIMESTAMP(ts) FROM  inventory WHERE idsite = $instanceNumber ORDER BY ts DESC LIMIT 1;" );
 $sthFrontendStats->execute();
 while (my @frontendStatsDbrow = $sthFrontendStats->fetchrow_array){
     $latestTimeFrontendStats =  $frontendStatsDbrow[0];
 }
+
 # because mongodb connector requires explicitly int type !
 print "time:", $latestTimeFrontendStats, "\n";
 $latestTimeFrontendStats = $latestTimeFrontendStats + 1 - 1;
@@ -155,9 +156,10 @@ eval {
                                                                  `ts`, 
                                                                  `created`, 
                                                                  `modified`, 
-                                                                 `title`
+                                                                 `title`,
+                                                                 `deleted`
                                                               )
-                                                     values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                                     values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                                      on duplicate key update
                                                                         idsite = values(idsite),
                                                                         oid = values(oid),
@@ -171,7 +173,8 @@ eval {
                                                                         ts = values(ts),
                                                                         created = values(created),
                                                                         modified = values(modified),
-                                                                        title = values(title)
+                                                                        title = values(title),
+                                                                        deleted = values(deleted)
                                                       ";
           my $sthFrontendStats_upsert = $dbhFrontendStats->prepare($frontendStats_upsert_query);
 
@@ -219,7 +222,8 @@ eval {
                                             $updated_at,                #time when mongoDB record is updated ts
                                             $doc->{'createdDate'},      #time when fedora object is created taken from foxml
                                             $doc->{'lastModifiedDate'}, #time when fedora object is modified taken from foxml
-                                            $title
+                                            $title,
+                                            '0'
                                            );
                       print "Error upserting record with PID $doc->{'pid'} :", $sthFrontendStats_upsert->errstr, "\n" if $sthFrontendStats_upsert->errstr;
                    $counterUpsert++;
@@ -238,6 +242,68 @@ if ($@) {
                print "Rollback aborted because $@";
           }
 }
+
+
+#mark as deleted objects that are deleted in mongodb
+my $thereIsNoMoreRows = 0;
+my $j = 0;
+my @pidsToDelete;
+until( $thereIsNoMoreRows ){
+     #get records from mysql 
+     my $sthFrontendStats = $dbhFrontendStats->prepare( "SELECT oid FROM inventory WHERE idsite = $instanceNumber AND deleted = 0 ORDER BY id LIMIT $j, 1000;" );
+     $sthFrontendStats->execute();
+     my $frontendStats;
+     my $mysqlPartialCount = 0;
+     my @partialArrayMysql;
+     while (my @frontendStatsDbrow = $sthFrontendStats->fetchrow_array){
+          push @partialArrayMysql, $frontendStatsDbrow[0];
+          $mysqlPartialCount++;
+     }
+     
+     #exit the loop if there is no more records
+     if($mysqlPartialCount == 0){
+          $thereIsNoMoreRows = 1;
+     }
+     
+     #get records from mongodb
+     my $dataset    = $collection->find({'pid' => {'$in' => \@partialArrayMysql}});
+     my $mongoPartialCount = 0;
+     my $partialHashMongo;
+     while (my $doc = $dataset->next){
+          $partialHashMongo->{$doc->{'pid'}} = 1;
+          $mongoPartialCount++;
+     }
+     #find records that are deleted in mongodb but stil in mysql(and not already marked as 'deleted')
+     if($mysqlPartialCount != $mongoPartialCount){
+         #foreach my $key (keys %{$partialHashMysql}) {
+         foreach (@partialArrayMysql) {
+                if(not defined $partialHashMongo->{$_}){
+                     push @pidsToDelete, $_;
+                }
+         }
+     }
+     $j = $j + 1000;
+     print "j:",$j, "\n";
+}
+
+#print Dumper(\@pidsToDelete);
+
+#mark as deleted=1 in mysql records that are deleted in mongodb
+foreach (@pidsToDelete){
+    print "Marking deleted pid:",$_,"\n";
+    my $frontendStats_delete_query = "UPDATE inventory SET deleted=1 WHERE oid=? and idsite=?;";
+    my $sthFrontendStats_update = $dbhFrontendStats->prepare($frontendStats_delete_query);
+    $sthFrontendStats_update->execute($_, $instanceNumber);
+    $sthFrontendStats_update->finish();
+    if ( $sthFrontendStats_update->err ){
+            print "DBI ERROR! pid:$_: $sthFrontendStats_update->err : $sthFrontendStats_update->errstr \n";
+    }
+}
+
+
+print "Pid's with title problem:".Dumper(\@pidWithTitleProblem);
+
+
 
 $dbhFrontendStats->disconnect();
 

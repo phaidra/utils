@@ -13,12 +13,10 @@ use POSIX;
 use POSIX qw( strftime );
 use JSON;
 
-#use Benchmark;
-#use Time::HiRes qw/tv_interval gettimeofday/; 
 
 =pod
 
-=head1 Generate thumbnails 
+=head1 Inventory
 
 usage:
 inventory.pl path_to_config instance_number
@@ -275,7 +273,6 @@ until( $thereIsNoMoreRows ){
      }
      #find records that are deleted in mongodb but stil in mysql(and not already marked as 'deleted')
      if($mysqlPartialCount != $mongoPartialCount){
-         #foreach my $key (keys %{$partialHashMysql}) {
          foreach (@partialArrayMysql) {
                 if(not defined $partialHashMongo->{$_}){
                      push @pidsToDelete, $_;

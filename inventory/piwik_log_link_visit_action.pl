@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 use warnings; 
 use strict;
@@ -125,8 +125,8 @@ my $sthFrontendStats_upsert = $dbhFrontendStats->prepare($frontendStats_upsert_q
 
 while (my @piwik_upsert_Dbrow = $sthPiwik->fetchrow_array){
       
-      print "Upserting idvisit:",$piwik_upsert_Dbrow[0],"\n";
-      print "Upserting idvisit time:",$piwik_upsert_Dbrow[3],"\n";
+      # print "Upserting idvisit:",$piwik_upsert_Dbrow[0],"\n";
+      # print "Upserting idvisit time:",$piwik_upsert_Dbrow[3],"\n";
 
       $sthFrontendStats_upsert->execute(
                                             $piwik_upsert_Dbrow[0],

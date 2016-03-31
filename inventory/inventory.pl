@@ -134,7 +134,7 @@ while (my @frontendStatsDbrow = $sthFrontendStats->fetchrow_array){
 }
 
 # because mongodb connector requires explicitly int type !
-print "time:", $latestTimeFrontendStats, "\n";
+# print "time:", $latestTimeFrontendStats, "\n";
 $latestTimeFrontendStats = $latestTimeFrontendStats + 1 - 1;
 
 
@@ -202,7 +202,7 @@ eval {
                   my $updated_at = 0;
                   $updated_at = strftime("%Y-%m-%d %H:%M:%S", localtime($doc->{'updated_at'})) if defined $doc->{'updated_at'};
           
-                  print "Upserting $doc->{'pid'}... Record's 'updated_at' :",$updated_at,"\n";
+                  # print "Upserting $doc->{'pid'}... Record's 'updated_at' :",$updated_at,"\n";
            
                   my $title = "";
                   $title = getTitle($doc->{'pid'}) if defined $doc->{'pid'};
@@ -280,7 +280,7 @@ until( $thereIsNoMoreRows ){
          }
      }
      $j = $j + 1000;
-     print "j:",$j, "\n";
+     # print "j:",$j, "\n";
 }
 
 #print Dumper(\@pidsToDelete);

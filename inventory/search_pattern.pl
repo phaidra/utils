@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 use warnings; 
 use strict;
@@ -83,8 +83,8 @@ $sthFrontendStats->execute();
 while (my @frontendStatsDbrow = $sthFrontendStats->fetchrow_array){
     $latestTimeFrontendStats =  $frontendStatsDbrow[0];
 } 
-print "latestTimeFrontendStats:\n",$latestTimeFrontendStats,"\n";                                
-#exit;   
+# print "latestTimeFrontendStats:\n",$latestTimeFrontendStats,"\n";                                
+   
 #read PhaidraUser database with newer or equal $latestTimeFrontendStats and upsert new records to Frontend Statistics database
 my $sthPhairaUsersDB = $dbhPhairaUsersDB->prepare( "SELECT * FROM search_pattern where last_update >= \"$latestTimeFrontendStats\" ORDER BY last_update ASC" );
 $sthPhairaUsersDB->execute();
@@ -101,8 +101,8 @@ my $frontendStats_upsert_query = "INSERT INTO `search_pattern` (`SID`, `idsite`,
 my $sthFrontendStats_upsert = $dbhFrontendStats->prepare($frontendStats_upsert_query);
 
 while (my @phairaUsers_upsert_Dbrow = $sthPhairaUsersDB->fetchrow_array){
-      print "Upserting SID:",$phairaUsers_upsert_Dbrow[0],"\n";
-      print "Upserting SID time:",$phairaUsers_upsert_Dbrow[4],"\n";
+      # print "Upserting SID:",$phairaUsers_upsert_Dbrow[0],"\n";
+      # print "Upserting SID time:",$phairaUsers_upsert_Dbrow[4],"\n";
 
       $sthFrontendStats_upsert->execute(
                                             $phairaUsers_upsert_Dbrow[0],

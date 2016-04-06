@@ -88,7 +88,7 @@ while (my @frontendStatsDbrow = $sthFrontendStats->fetchrow_array){
 #read PhaidraUser database with newer or equal $latestTimeFrontendStats and upsert new records to Frontend Statistics database
 my $sthPhairaUsersDB = $dbhPhairaUsersDB->prepare( "SELECT * FROM search_pattern where last_update >= \"$latestTimeFrontendStats\" ORDER BY last_update ASC" );
 $sthPhairaUsersDB->execute();
-my $counterUpsert;
+my $counterUpsert = 0;
 my $frontendStats_upsert_query = "INSERT INTO `search_pattern` (`SID`, `idsite`, `name`, `session_id`, `pattern`, `last_update`)
                                                      values(?, ?, ?, ?, ?, ?) 
                                                      on duplicate key update

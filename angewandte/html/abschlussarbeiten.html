@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+   <!-- Use '|' as 'separator' and 'utf-8' as 'character set' while opening csv file in excel/calc  -->
+   <style> table, th, td { 
+                           border: 1px solid black;
+                           border-collapse: collapse;
+                         }
+           th, td {
+                    padding: 5px;
+                    text-align: left;
+                  }
+          .abschlus-btn{
+                        margin: 10px;
+                      }
+   </style>
+   <meta charset="UTF-8">
+   
+   <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.5.3/angular.js"></script>
+   <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.15/angular-sanitize.min.js"></script>
+   <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.5.3/angular-animate.js"></script>
+   <script src="http://angular-ui.github.io/bootstrap/ui-bootstrap-tpls-1.3.1.js"></script>
+   
+   <script src="promise-tracker.min.js"></script>
+   
+   
+   <script src="https://cdn.jsdelivr.net/alasql/0.2.5/alasql.min.js"></script>
+   <script src="https://cdn.jsdelivr.net/js-xlsx/0.8.0/xlsx.core.min.js"></script>
+   
+   <link href="http://netdna.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet">
+  
+ <script>(function(angular) {
+   'use strict';
+   angular.module('ngRepeat' ,['ngAnimate', 'ajoslin.promise-tracker', 'ui.bootstrap','ngSanitize']).controller('repeatController', function($scope, $http, $timeout, promiseTracker) {
+
+   $scope.alerts  = [];// [ {msg: 'fe'}, {msg: 'fesss'} ];
+   $scope.objects = [];
+   $scope.allObjects = [];
+
+   $scope.sortOrder   = 1;
+   $scope.currentPage = 1;   // starting page
+   $scope.maxSize     = 10;  // pages in paginator
+   $scope.limit       = 10;  // records per page
+   $scope.totalItems  = 0;
+   
+   $scope.objectDisplay = [];
+   
+   $scope.getArray = [];
+   $scope.csvDataDownloaded = 0;
+   $scope.firstPageDownloaded = 0;
+   $scope.getAllFlag = 0;
+   
+
+   $scope.exportData = function () {
+       alasql('SELECT * INTO CSV("mydata.csv",{headers:true, separator:"|"}) FROM ?',[$scope.allObjects]);
+   };
+   
+   
+   
+   $scope.pageChanged = function() {
+      console.log('Page changed to: ' +$scope.currentPage);
+      var start  = ($scope.currentPage-1)*$scope.limit ;
+      $scope.getData(start, $scope.limit, 0);
+   };
+    $scope.downloadAllDataForCsv = function() {
+             $scope.getData(0, $scope.totalItems, 1);
+   }
+   $scope.getData = function(from,  limit, getAllFlag) {
+         
+         console.log('getData from:',from);
+         console.log('getData limit:',limit);
+         if(getAllFlag){
+                 //$scope.getAllFlag = getAllFlag;
+                 $timeout(function(){$scope.getAllFlag = getAllFlag}, 4000);
+         }
+         
+         $scope.loadingTracker = promiseTracker();
+         
+         var fields = [];
+         fields.push('PID');
+         fields.push('fgs.createdDate');
+         fields.push('uw.general.title.de');
+         fields.push('uw.general.title.en');
+         
+         
+         var promise =  $http({
+                 method  : 'POST',
+                 url     :'https://services.phaidra.bibliothek.uni-ak.ac.at/api/search/lucene',
+                 params    : {
+                               q: "uw.lifecycle.contribute.role:1552167",
+                               fields: fields,
+                               from: from,
+                               limit: limit,
+                               reverse : 1, 
+                               sort : "fgs.createdDate,STRING"
+                             }
+         });
+         promise.then(
+           function(response) {
+               $scope.alerts = response.data.alerts;
+               if(!getAllFlag){
+                     $scope.objects = response.data.objects;
+               }
+               var myObjects = response.data.objects;
+               console.log('response.data:',response.data);
+               $scope.totalItems = response.data.hits;
+               //$scope.totalItems = 15;
+               console.log('myObjects:',myObjects);
+               for(var i = 0; i < myObjects.length ; i++){
+                    if(myObjects[i].PID){
+                          var promise2 =  $http({
+                             method  : 'GET',
+                             url     :'https://services.phaidra.bibliothek.uni-ak.ac.at/api/object/'+myObjects[i].PID+'/uwmetadata',
+                          });
+                          
+                          $scope.loadingTracker.addPromise(promise2);
+                          promise2.then(
+                              function(response) {
+                                      $scope.alerts = response.data.alerts;
+                                      $scope.uwmetadata = response.data.metadata.uwmetadata;
+                                      console.log('$scope.uwmetadata:',$scope.uwmetadata);
+                                      var pid;
+                                      if( $scope.uwmetadata[0].children){
+                                           for(var n = 0; n <  $scope.uwmetadata[0].children.length ; n++){
+                                                  if($scope.uwmetadata[0].children[n].xmlname == 'identifier'){
+                                                         pid = $scope.uwmetadata[0].children[n].ui_value;
+                                                  }
+                                           }
+                                      }
+                                      // get abstract de
+                                      var abstractDe;
+                                      if( $scope.uwmetadata[0].children){
+                                           for(var n = 0; n <  $scope.uwmetadata[0].children.length ; n++){ 
+                                                  console.log('xmlname:',$scope.uwmetadata[0].children[n].xmlname);
+                                                  console.log('value_lang:',$scope.uwmetadata[0].children[n].value_lang);
+                                                  if($scope.uwmetadata[0].children[n].xmlname == 'description' && $scope.uwmetadata[0].children[n].value_lang == 'de'){
+                                                         abstractDe = $scope.uwmetadata[0].children[n].loaded_ui_value;
+                                                         console.log('abstractDe:',abstractDe);
+                                                  }
+                                           }
+                                      }
+                                      // get abstract en
+                                      var abstractEn;
+                                      if( $scope.uwmetadata[0].children){
+                                           for(var n = 0; n <  $scope.uwmetadata[0].children.length ; n++){ 
+                                                  if($scope.uwmetadata[0].children[n].xmlname == 'description' && $scope.uwmetadata[0].children[n].value_lang == 'en'){
+                                                         abstractEn = $scope.uwmetadata[0].children[n].loaded_ui_value;
+                                                         console.log('abstractEn:',abstractEn);
+                                                  }
+                                           }
+                                      }
+                                      // get adviser
+                                      var adviserArray = [];
+                                      if( $scope.uwmetadata[1].children){
+                                            for(var j = 0; j <  $scope.uwmetadata[1].children.length ; j++){
+                                                   if( $scope.uwmetadata[1].children[j].xmlname == 'contribute'){
+                                                          var isAdviser = 0;
+                                                          for(var k = 0; k <  $scope.uwmetadata[1].children[j].children.length ; k++){
+                                                                if($scope.uwmetadata[1].children[j].children[k].xmlname == 'role'){
+                                                                      var ui_value = $scope.uwmetadata[1].children[j].children[k].ui_value;
+                                                                      var roleCodeArr = ui_value.split("/");
+                                                                      var roleCode = roleCodeArr.pop();
+                                                                      if(roleCode == '1552167'){
+                                                                           isAdviser = 1;
+                                                                      }
+                                                                }
+                                                                if($scope.uwmetadata[1].children[j].children[k].xmlname == 'entity'){
+                                                                       if(isAdviser == 1){
+                                                                              var adviser = {};
+                                                                              for(var m = 0; m <  $scope.uwmetadata[1].children[j].children[k].children.length ; m++){
+                                                                                    if($scope.uwmetadata[1].children[j].children[k].children[m]){
+                                                                                           if($scope.uwmetadata[1].children[j].children[k].children[m].xmlname == 'firstname'){
+                                                                                                adviser.firstname = $scope.uwmetadata[1].children[j].children[k].children[m].ui_value; 
+                                                                                           }
+                                                                                           if($scope.uwmetadata[1].children[j].children[k].children[m].xmlname == 'lastname'){
+                                                                                                adviser.lastname = $scope.uwmetadata[1].children[j].children[k].children[m].ui_value; 
+                                                                                           }
+                                                                                           if($scope.uwmetadata[1].children[j].children[k].children[m].xmlname == 'title1'){
+                                                                                                adviser.title1 = $scope.uwmetadata[1].children[j].children[k].children[m].ui_value; 
+                                                                                           }
+                                                                                           if($scope.uwmetadata[1].children[j].children[k].children[m].xmlname == 'title2'){
+                                                                                                adviser.title2 = $scope.uwmetadata[1].children[j].children[k].children[m].ui_value; 
+                                                                                           }
+                                                                                    }
+                                                                              }
+                                                                              if(adviser){
+                                                                                    adviserArray.push(adviser);
+                                                                              }
+                                                                       }
+                                                                }
+                                                          }
+                                                   }
+                                            }
+                                      }
+                                      var adviserString = '';
+                                      for(var v = 0; v < adviserArray.length ; v++){
+                                           if(adviserArray[v].firstname || adviserArray[v].lastname){
+                                                 adviserString = adviserString+adviserArray[v].firstname+' '+adviserArray[v].lastname+', '+adviserArray[v].title1+'  ';
+                                           }
+                                      }
+                                      
+                                      for(var r = 0; r <  myObjects.length ; r++){
+                                             if( myObjects[r].PID == pid){
+                                                  if(!getAllFlag){
+                                                         $scope.objects[r].adviser = adviserString;
+                                                         $scope.objects[r].abstractDe = abstractDe;
+                                                         $scope.objects[r].abstractEn = abstractEn;
+                                                         
+                                                         /*
+                                                         if(!$scope.objects[r].abstractEn){
+                                                                $scope.objects[r].abstractEn = 'empty';
+                                                         }
+                                                         if(!$scope.objects[r].abstractDe){
+                                                                $scope.objects[r].abstractDe = 'empty';
+                                                         }
+                                                         if(!$scope.objects[r].adviser){
+                                                                $scope.objects[r].adviser = 'empty';
+                                                         }
+                                                         if(!$scope.objects[r]['uw.general.title.de']){
+                                                                $scope.objects[r]['uw.general.title.de'] = 'empty';
+                                                         }
+                                                         if(!$scope.objects[r]['uw.general.title.en']){
+                                                                $scope.objects[r]['uw.general.title.en'] = 'empty';
+                                                         }
+                                                         */
+                                                  }else{
+                                                         $scope.allObjects = myObjects;
+                                                         $scope.allObjects[r].adviser = adviserString;
+                                                         $scope.allObjects[r].abstractDe = abstractDe;
+                                                         $scope.allObjects[r].abstractEn = abstractEn;
+                                                         
+                                                         /*
+                                                         if(!$scope.allObjects[r].abstractEn){
+                                                                $scope.allObjects[r].abstractEn = 'empty';
+                                                         }
+                                                         if(!$scope.allObjects[r].abstractDe){
+                                                                $scope.allObjects[r].abstractDe = 'empty';
+                                                         }
+                                                         if(!$scope.allObjects[r].adviser){
+                                                                $scope.allObjects[r].adviser = 'empty';
+                                                         }
+                                                         if(!$scope.allObjects[r]['uw.general.title.de']){
+                                                                $scope.allObjects[r]['uw.general.title.de'] = 'emptyTde';
+                                                         }
+                                                         if(!$scope.allObjects[r]['uw.general.title.en']){
+                                                                $scope.allObjects[r]['uw.general.title.en'] = 'emptyTne';
+                                                         }
+                                                         */
+                                                  }
+                                             }
+                                      }
+                                     
+                                      if(getAllFlag){
+                                             $scope.csvDataDownloaded = 1;
+                                             
+                                      }else{
+                                             $scope.firstPageDownloaded = 1;
+                                      }
+                                      console.log('end objects :',$scope.objects);
+                                      console.log('end allObjects:',$scope.allObjects);
+                              }
+                             ,function(response) {
+                                      $scope.alerts = response.data.alerts;
+                              }
+                         );
+                    }
+               }
+           }
+           ,function(response) {
+               $scope.alerts = response.data.alerts;
+           }
+        );
+   }
+   
+   
+   $scope.test = function() {
+           console.log('loadingTracker:',$scope.loadingTracker.active());
+   }
+   $scope.init = function() {
+
+         $scope.getData(0, $scope.limit, 0);
+
+     }
+ });
+})(window.angular);</script>
+
+</head>
+   <body ng-app="ngRepeat">
+      <div ng-controller="repeatController" data-ng-init="init()">
+             <button ng-if="firstPageDownloaded && !loadingTracker.active()" type="button" ng-click="downloadAllDataForCsv()"  class="btn  btn-success btn-lg abschlus-btn" >Download all hits for csv (this can take several minutues)</button>
+             <button ng-if="!loadingTracker.active() && getAllFlag" type="button" class="btn  btn-success btn-lg abschlus-btn" ng-click="exportData()">Save to CSV file2</button>
+             <div ng-if="alerts.length">
+                       <ul>
+                                  <li ng-repeat="a in alerts">{{a.msg}}</li>
+                       </ul>
+             </div>
+             <div>
+                      <img class="load-spinner" data-ng-show="loadingTracker.active()"  alt="Embedded Image"  src="data:image/png;base64,R0lGODlhKwALAPEAAP///7gAB9uChbgAByH/C05FVFNDQVBFMi4wAwEAAAAh/hpDcmVhdGVkIHdpdGggYWpheGxvYWQuaW5mbwAh+QQJCgAAACwAAAAAKwALAAACMoSOCMuW2diD88UKG95W88uF4DaGWFmhZid93pq+pwxnLUnXh8ou+sSz+T64oCAyTBUAACH5BAkKAAAALAAAAAArAAsAAAI9xI4IyyAPYWOxmoTHrHzzmGHe94xkmJifyqFKQ0pwLLgHa82xrekkDrIBZRQab1jyfY7KTtPimixiUsevAAAh+QQJCgAAACwAAAAAKwALAAACPYSOCMswD2FjqZpqW9xv4g8KE7d54XmMpNSgqLoOpgvC60xjNonnyc7p+VKamKw1zDCMR8rp8pksYlKorgAAIfkECQoAAAAsAAAAACsACwAAAkCEjgjLltnYmJS6Bxt+sfq5ZUyoNJ9HHlEqdCfFrqn7DrE2m7Wdj/2y45FkQ13t5itKdshFExC8YCLOEBX6AhQAADsAAAAAAAAAAAA=" />
+             </div>
+             <uib-pagination total-items="totalItems" ng-change="pageChanged(page)" ng-model="currentPage" max-size="maxSize" boundary-links="true" force-ellipses="true"></uib-pagination>
+             <div class="col-md-2">
+                        <strong><span class="hits">{{totalItems}} hits</span> </strong>
+             </div> 
+                  
+             <table style="width:100%">
+                     <tr>
+                            <th>PID</td>
+                            <th>Date</td>
+                            <th>Titel EN</td>
+                            <th>Titel DE</td>
+                            <th>BetreuerIn</td>
+                            <th>Abstract EN</td>
+                            <th>Abstract DE</td>
+                     <tr>
+                     <tr ng-repeat="o in objects">
+                            <td>{{o.PID}}</td>
+                            <td>{{o['fgs.createdDate']}}</td>
+                            <td>{{o['uw.general.title.en']}}</td> 
+                            <td>{{o['uw.general.title.de']}}</td>
+                            <td>{{o['adviser']}}</td>
+                            <td>{{o['abstractEn']}}</td>
+                            <td>{{o['abstractDe']}}</td>
+                     </tr>
+            </table>
+            <div ng-if="results.length == 0">
+                     <strong>No results found...</strong>
+           </div> 
+      </div>
+   </body>
+</html> 

@@ -1,10 +1,10 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 
 use strict;
 use warnings;
 
 use Data::Dumper;
-
+use Mojo::ByteStream qw(b);
 use LWP::UserAgent;
 use HTTP::Request::Common qw{ POST };
 use JSON;
@@ -22,6 +22,7 @@ my $url_lucene = 'https://services.phaidra.bibliothek.uni-ak.ac.at/api/search/lu
 my @fields = [];
 push @fields, 'PID';
 push @fields, 'fgs.createdDate';
+push @fields, 'fgs.ownerId';
 push @fields, 'uw.general.title.de';
 push @fields, 'uw.general.title.en';
 
@@ -40,7 +41,7 @@ my $content = $ua->request($request);
 
 my $content_hash;
 if ($content->is_success) {
-    $content_hash = decode_json $content->decoded_content;
+    $content_hash = decode_json($content->decoded_content);
 }
 else {
     die $content->status_line;
@@ -89,9 +90,10 @@ sub getAbstract($$){
 
 }
 
-sub getadviser($){
+sub getEntity($$){
 
      my $content = shift;
+     my $role = shift;
      
      my $adviserString = '';
      my @adviserArray;
@@ -107,7 +109,7 @@ sub getadviser($){
                                                 my $ui_value = $content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{ui_value};
                                                 my @array = split /\//, $ui_value;
                                                 my $roleCode = $array[-1];
-                                                if($roleCode == 1552167){
+                                                if($roleCode == $role){
                                                        $isAdviser = 1;
                                                 }
                                         }
@@ -161,14 +163,16 @@ sub getadviser($){
 my $w = 1;
 my $filename = 'abschlussarbeiten.csv';
 open(my $fh, '>:encoding(UTF-8)', $filename) or die "Could not open file '$filename' $!";
-print $fh "Created date|PID|Adviser|Title DE|Title EN|Abstract DE|Abstract EN\n";
+print $fh "Created date|PID|Owner|Author|Adviser|Title DE|Title EN|Abstract DE|Abstract EN\n";
 foreach (@{$content2_array->{objects}})
 {
+#last if ($w > 10);
       my $url = "https://services.phaidra.bibliothek.uni-ak.ac.at/api/object/".$_->{PID}."/uwmetadata";
       my $content3 = $ua->get($url);
       my $content_hash3;
       if ($content3->is_success) {
-            $content_hash3 = decode_json $content3->decoded_content;
+#$content_hash3 =       	decode_json(b($content3->content)->encode('UTF-8'));
+            $content_hash3 = decode_json $content3->decoded_content((charset => 'utf-8'));
       }
       else {
             die $content3->status_line;
@@ -176,17 +180,19 @@ foreach (@{$content2_array->{objects}})
       
       my $abstractDe = getAbstract($content_hash3, 'de');
       my $abstractEn = getAbstract($content_hash3, 'en');
-      my $adviser = getadviser($content_hash3);
+      my $adviser = getEntity($content_hash3,'1552167');
+      my $author = getEntity($content_hash3,'46');
      
       $_->{abstractDe} = $abstractDe;
       $_->{abstractEn} = $abstractEn;
-      $_->{adviser} = $adviser;
-      
-    
+      $_->{adviser} = $adviser;      
+      $_->{author} = $author;  
      
       $_->{'fgs.createdDate'}     = '' if not defined  $_->{'fgs.createdDate'};
       $_->{PID}                   = '' if not defined  $_->{PID};
+      $_->{owner}                   = '' if not defined  $_->{'fgs.ownerId'};
       $_->{adviser}               = '' if not defined  $_->{adviser};
+      $_->{author}               = '' if not defined  $_->{author};
       $_->{'uw.general.title.de'} = '' if not defined  $_->{'uw.general.title.de'};
       $_->{'uw.general.title.en'} = '' if not defined  $_->{'uw.general.title.en'};
       $_->{abstractDe}            = '' if not defined  $_->{abstractDe};
@@ -197,8 +203,12 @@ foreach (@{$content2_array->{objects}})
       $_->{'fgs.createdDate'}=~s/\"+$//g;
       $_->{PID}=~s/^\"+//g;
       $_->{PID}=~s/\"+$//g;
+      $_->{'fgs.ownerId'}=~s/^\"+//g;
+      $_->{'fgs.ownerId'}=~s/\"+$//g;
       $_->{adviser}=~s/^\"+//g;
       $_->{adviser}=~s/\"+$//g;
+      $_->{author}=~s/^\"+//g;
+      $_->{author}=~s/\"+$//g;
       $_->{'uw.general.title.de'}=~s/^\"+//g;
       $_->{'uw.general.title.de'}=~s/\"+$//g;
       $_->{'uw.general.title.en'}=~s/^\"+//g;
@@ -209,7 +219,7 @@ foreach (@{$content2_array->{objects}})
       $_->{abstractEn}=~s/\"+$//g;
       
       # write results int csv file
-      print $fh $_->{'fgs.createdDate'}.'|'.$_->{PID}.'|'.$_->{adviser}.'|'.$_->{'uw.general.title.de'}.'|'.$_->{'uw.general.title.en'}.'|'.$_->{abstractDe}.'|'.$_->{abstractEn}."\n";
+      print $fh $_->{'fgs.createdDate'}.'|'.$_->{PID}.'|'.$_->{'fgs.ownerId'}.'|'.$_->{author}.'|'.$_->{adviser}.'|'.$_->{'uw.general.title.de'}.'|'.$_->{'uw.general.title.en'}.'|'.$_->{abstractDe}.'|'.$_->{abstractEn}."\n";
  
       print $w." of $content_hash->{hits} \n";
       $w++;

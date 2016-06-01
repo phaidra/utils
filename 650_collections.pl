@@ -15,6 +15,12 @@ use Mojo::Base 'Mojolicious';
 use Mojo::ByteStream qw(b);
 
 
+=head1
+ 
+ usage: perl 650_collections.pl fedoraadminuser fedoraadminpass phaidraapibaseurl
+
+=cut 
+
 
 sub getParentFolderId($);
 sub getUwmetadata($$$);
@@ -22,19 +28,19 @@ sub createFolderCollection($$);
 
 my @folderCollections;
 
+my ($fedoraadminuser, $fedoraadminpass, $phaidraapibaseurl) = @ARGV;
 
-my $config = YAML::Syck::LoadFile("/etc/phaidra.yml");
-
-my $fedoraadminuser  = $config->{"fedoraadminuser"};
-my $fedoraadminpass = $config->{"fedoraadminpass"};
-my $phaidraapibaseurl  = $config->{"phaidraapibaseurl"};
+#my $config = YAML::Syck::LoadFile("/etc/phaidra.yml");
+#my $fedoraadminuser  = $config->{"fedoraadminuser"};
+#my $fedoraadminpass = $config->{"fedoraadminpass"};
+#my $phaidraapibaseurl  = $config->{"phaidraapibaseurl"};
 
 my @base = split('/',$phaidraapibaseurl);
 my $scheme = "https";
 
 
 #use sandbox API
-#$fedoraadminpass = 'xxxxxxx';
+#$fedoraadminpass = 'h0yOJ29X';
 #$base[0] = 'services.phaidra-sandbox.univie.ac.at';
 
 

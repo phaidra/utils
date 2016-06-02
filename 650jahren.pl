@@ -8,10 +8,9 @@ use lib;
 use JSON;
 use utf8;
 use MongoDB;
-#use Encode qw(is_utf8 decode encode);
 use Encode;
-
-
+use File::Find;
+use File::Find::Rule;
 # find /media/phaidra-entw_root/home/folcanm4/650/ -type f -iname *.jpg | awk '{print "\"" $0 "\""}' | xargs exiftool -j -Title -Description -Creator | tee /home/michal/Documents/code/area42/user/mf/650Jahren/650Jahren.json
 
 # find /media/phaidra-entw_root/home/folcanm4/650/ -type f -iname *.pdf | awk '{print "{\"institution\":\"" $0 "\"}"}' | tee /home/michal/Documents/code/area42/user/mf/650Jahren/650JahrenPdf.json
@@ -24,10 +23,12 @@ my $mongoDbConnection = MongoDB::MongoClient->new(
         host => 'localhost',
         username => '',
         password => '',
-        
     );
-my $mongoDb = $mongoDbConnection->get_database('650Jahren');
+
+my $mongoDb = $mongoDbConnection->get_database('bagger');
+
 my $collectionBags = $mongoDb->get_collection('bags');
+my $collectionFolders = $mongoDb->get_collection('folders');
 
 #find /media/phaidra-entw_root/home/folcanm4/650/ -type f -iname *.jpg | awk '{print "\"" $0 "\""}' | xargs exiftool -j -Title -Description -Creator | tee /home/michal/Documents/code/area42/user/mf/650Jahren/650Jahren.json
 
@@ -49,65 +50,82 @@ my $json_text_pdf = do {
 };
 
 
-#utf8::encode($json_text_jpg);
 my $json = JSON->new;
 my $data_jpg = $json->decode($json_text_jpg);
 my $data_pdf = $json->decode($json_text_pdf);
 
 
-#print Dumper($data_pdf);exit;
+my $defaultDescription = 'Die Universität Wien feierte im Jahr 2015 ihr 650. Gründungsjubiläum. Aus diesem Anlass öffnete eine der ältesten und größten Hochschulen Europas ihre Tore einer breiten Öffentlichkeit. Die vielfältigen Fachbereiche, Fakultäten und Zentren der Universität begleiteten das Jubiläumsjahr mit zahlreichen Aktivitäten. Das Angebot beinhaltete Vorträge, Kongresse und Symposien, Spezialvorlesungen und Seminare aber auch Ausstellungen, Konzerte, Sportevents und Performances. Die Vermittlung der Relevanz von Forschung und Lehre stand dabei im Mittelpunkt.';
 
-#print Dumper($data_jpg);
+sub addFolders($);
+
+#!!!!!!!!!!!!!!!!!!!!!!!
+# update 'folders' mongoDb collection
+addFolders('/home/michal/Documents/code/area42/user/mf/angularjs/bagger/data/650jahren/folders/in/650');
 #exit;
 
-my $defaultDescription = 'Die Universität Wien feierte im Jahr 2015 ihr 650. Gründungsjubiläum. Aus diesem Anlass öffnete eine der ältesten und größten Hochschulen Europas ihre Tore einer breiten Öffentlichkeit. Die vielfältigen Fachbereiche, Fakultäten und Zentren der Universität begleiteten das Jubiläumsjahr mit zahlreichen Aktivitäten. Das Angebot beinhaltete Vorträge, Kongresse und Symposien, Spezialvorlesungen und Seminare aber auch Ausstellungen, Konzerte, Sportevents und Performances. Die Vermittlung der Relevanz von Forschung und Lehre stand dabei im Mittelpunkt.';
+
 
 my $i = 1;
 foreach my $picture (@{$data_jpg}) {
-    next if $i > 3;
-    #print $picture->{Creator}, "\n";
-    #
-    #exit;
     $picture->{assignee} = "hudakr4";
     my @filePath = split /\//, $picture->{SourceFile};
+
     my $fileName = pop @filePath;
-    $fileName =~ s/ //g;
-    $fileName =~ s/-//g;
-    $fileName =~ s/_//g;
-    my $badid = "650jahren".$fileName;
-    $picture->{bagid} = $badid;
+    my $folderid = pop @filePath;
+    my $fileNameId = $fileName;
+    if ($fileNameId =~ m/[^a-zA-Z0-9]/){
+           #print "The string contains non-alphanumeric characters";
+           $fileNameId =~ s/[^a-zA-Z\d\s:]//g;
+           $fileNameId =~ s/ //g;
+    }
+    if ($folderid =~ m/[^a-zA-Z0-9]/){
+           $folderid =~ s/[^a-zA-Z\d\s:]//g;
+           $folderid =~ s/ //g;
+    }
+    my $bagid = "650jahren".$folderid.$fileNameId;
+    $picture->{bagid} = $bagid;
     $picture->{file} = $fileName;
     $picture->{created} = time;
     $picture->{updated} = time;
     $picture->{project} = "650jahren";
     $picture->{status} = "new";
     $picture->{tags} = ();
-    my $folderid = join("/", @filePath);
+   
+    $folderid =~ s/ //g;
+    $folderid =~ s/-//g;
+    $folderid =~ s/_//g;
+    $folderid =~ s/\.//g;
+    $folderid =~ s/,//g;
     $picture->{folderid} = $folderid;
     $picture->{label} = $picture->{Description};
     $picture->{metadata}->{uwmetadata} = getUwmetadata($fileName, $picture->{Title}, $picture->{Description}, $picture->{Creator});
-
-    #print Dumper($picture);
     
     $collectionBags->insert($picture);
     
-    
-    $i++;
-    #print Dumper($picture);
-    
+    $i++;    
 }
+
+
 
 my $j = 0;
 foreach my $pdf (@{$data_pdf}) {
-    next if $j > 3;
-    print "ssss\n";
     $pdf->{assignee} = "hudakr4";
     my @filePath = split /\//, $pdf->{path};
     my $fileName = pop @filePath;
-    $fileName =~ s/ //g;
-    $fileName =~ s/-//g;
-    $fileName =~ s/_//g;
-    my $badid = "650jahren".$fileName;
+    my $folderid = pop @filePath;
+    my $fileNameId = $fileName;
+    if ($fileNameId =~ m/[^a-zA-Z0-9]/){
+           #print "The string contains non-alphanumeric characters";
+           $fileNameId =~ s/[^a-zA-Z\d\s:]//g;
+           $fileNameId =~ s/ //g;
+    }
+    if ($folderid =~ m/[^a-zA-Z0-9]/){
+           $folderid =~ s/[^a-zA-Z\d\s:]//g;
+           $folderid =~ s/ //g;
+    }
+    my $badid = "650jahren".$folderid.$fileNameId;
+    print '$badid pdf:',$badid,"\n";
     $pdf->{bagid} = $badid;
     $pdf->{file} = $fileName;
     $pdf->{created} = time;
@@ -115,16 +133,58 @@ foreach my $pdf (@{$data_pdf}) {
     $pdf->{project} = "650jahren";
     $pdf->{status} = "new";
     $pdf->{tags} = ();
-    my $folderid = join("/", @filePath);
     $pdf->{folderid} = $folderid;
+    #$pdf->{folderid} = '/home/michal/Documents/code/area42/user/mf/angularjs/bagger/data/650jahren/folders/in';
     $pdf->{label} = $defaultDescription;
     $pdf->{Creator} = 'Universität Wien';
     $pdf->{metadata}->{uwmetadata} = getUwmetadata($fileName, $pdf->{Title}, $pdf->{Description}, $pdf->{Creator});
     $collectionBags->insert($pdf);
     $j++;
 }
- 
 
+
+# update 'folders' mongoDb collection
+sub addFolders($){
+
+     my $path = shift;
+
+     
+     my @array = File::Find::Rule->directory->in($path);
+     foreach my $folderPath (@array){
+         my @folderIdArray = split /\//, $folderPath;
+         my $folderId = pop @folderIdArray;
+         if ($folderId =~ m/[^a-zA-Z0-9]/){
+              $folderId =~ s/[^a-zA-Z\d\s:]//g;
+              $folderId =~ s/ //g;
+         }
+         print 'folderid1:', Dumper($folderId);
+         my $folderHash;
+         $folderHash->{status} = 'active';
+         $folderHash->{project} = '650jahren';
+         $folderHash->{name} = $folderId;
+         $folderHash->{path} = $folderPath;
+         $folderHash->{created} = time;
+         $folderHash->{updated} = time;
+         $folderHash->{folderid} = $folderId;
+         
+         $folderHash->{folderid} = decode('UTF-8', $folderHash->{folderid});
+         
+         $folderHash->{name} = decode('UTF-8', $folderHash->{name});
+         $folderHash->{path} = decode('UTF-8', $folderHash->{path});
+
+         $collectionFolders->update({folderid => $folderHash->{folderid}}, {'$set' => {
+                                                                                     status => $folderHash->{status},
+                                                                                     project => $folderHash->{project},
+                                                                                     path => $folderHash->{path},
+                                                                                     name => $folderHash->{name},
+                                                                                     created => $folderHash->{created},
+                                                                                     updated => $folderHash->{updated}
+                                                                                 }}, 
+                                                                          {'upsert' => 1});
+
+         
+     }
+}
 
 sub getUwmetadata($$$$){
 
@@ -140,8 +200,9 @@ sub getUwmetadata($$$$){
       }else{
            @fileNameArray = split /\./, $myfileName;
            $fileExtension = pop @fileNameArray;
-           $uwmetaTitle = join("/", @fileNameArray);
+           $uwmetaTitle = join(" ", @fileNameArray);
       }
+      $uwmetaTitle =~ s/_/ /g;
       
       my $uwmetaDescription;
       if(defined $description){
@@ -156,23 +217,47 @@ sub getUwmetadata($$$$){
            my @creatorArray = split / /, $creator;
            $uwmetaFirstName = $creatorArray[0];
            $uwmetaLastName = $creatorArray[1];
-           #$uwmetaFirstName = encode('UTF-8', $uwmetaFirstName);
-           #$uwmetaFirstName = utf8::downgrade($uwmetaFirstName);
-           #$uwmetaFirstName = utf8::upgrade($uwmetaFirstName)
-           #$uwmetaLastName = encode('UTF-8', $uwmetaLastName);
       }
-      #my $uwmetaFirstName = decode('UTF-8', $uwmetaFirstName);
-      #print "Is this utf8: ",is_utf8($uwmetaFirstName) ? "Yes" : "No", "\n";
-      #print "Is this valid: ",utf8::valid($uwmetaFirstName) ? "Yes" : "No", "\n";
-      #$uwmetaFirstName = decode_utf8( $uwmetaFirstName );
-      #$uwmetaFirstName = encode('UTF-8', $uwmetaFirstName);
-      print $uwmetaFirstName, "\n";
-      print Dumper($uwmetaFirstName);
-      #exit;
+            
+     my $institutionNode = '{
+                    "xmlns": "http://phaidra.univie.ac.at/XML/metadata/lom/V1.0/entity",
+                    "xmlname": "institution",
+                    "input_type": "input_text",
+                    "ui_value": "Universität Wien",
+                    "datatype": "CharacterString"
+                  },
+                  {
+                    "xmlns": "http://phaidra.univie.ac.at/XML/metadata/lom/V1.0/entity",
+                    "xmlname": "type",
+                    "input_type": "input_text",
+                    "ui_value": "institution",
+                    "datatype": "CharacterString"
+                  }
+                  ';
+
+   my $nameNode = '{
+                    "xmlns": "http:\/\/phaidra.univie.ac.at\/XML\/metadata\/lom\/V1.0\/entity",
+                    "xmlname": "firstname",
+                    "ui_value": "'.$uwmetaFirstName.'",
+                    "datatype": "CharacterString"
+                  },
+                  {
+                    "xmlns": "http:\/\/phaidra.univie.ac.at\/XML\/metadata\/lom\/V1.0\/entity",
+                    "xmlname": "lastname",
+                    "ui_value": "'.$uwmetaLastName.'",
+                    "datatype": "CharacterString"
+                  }';
+      
+  my $entityChildren;
+  if( ($uwmetaFirstName eq 'Universität' || $uwmetaFirstName eq 'universität' || $uwmetaFirstName eq 'Universitat' || $uwmetaFirstName eq 'universitat') && ( $uwmetaLastName eq 'Wien' || $uwmetaLastName eq 'wien')){
+        $entityChildren = $institutionNode;
+  }elsif( ($uwmetaFirstName eq 'Universitätsbibliothek' || $uwmetaFirstName eq 'universitätsbibliothek' || $uwmetaFirstName eq 'Universitatsbibliothek' || $uwmetaFirstName eq 'universitatsbibliothek') && ( $uwmetaLastName eq 'Wien' || $uwmetaLastName eq 'wien') ){
+        $entityChildren = $institutionNode;
+  }else{
+        $entityChildren = $nameNode;
+  }
       
       my $uwmeta_string = '
-      
-
       [
       {
         "xmlns": "http:\/\/phaidra.univie.ac.at\/XML\/metadata\/lom\/V1.0",
@@ -221,20 +306,7 @@ sub getUwmetadata($$$$){
                 "xmlname": "entity",
                 "data_order": "0",
                 "ordered": 1,
-                "children": [
-                  {
-                    "xmlns": "http:\/\/phaidra.univie.ac.at\/XML\/metadata\/lom\/V1.0\/entity",
-                    "xmlname": "firstname",
-                    "ui_value": "'.$uwmetaFirstName.'",
-                    "datatype": "CharacterString"
-                  },
-                  {
-                    "xmlns": "http:\/\/phaidra.univie.ac.at\/XML\/metadata\/lom\/V1.0\/entity",
-                    "xmlname": "lastname",
-                    "ui_value": "'.$uwmetaLastName.'",
-                    "datatype": "CharacterString"
-                  }
-                ]
+                "children": ['.$entityChildren.']
               }
             ]
           }
@@ -261,20 +333,8 @@ sub getUwmetadata($$$$){
         my $json_bytes = encode('UTF-8', $uwmeta_string);
         my $uwmeta_hash = JSON->new->utf8->decode($json_bytes);
         
-
         return $uwmeta_hash;
-        
-
-
 }
-
-
-
-
-
-
-
-
 
 
 

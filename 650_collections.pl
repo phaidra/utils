@@ -41,7 +41,7 @@ my $scheme = "https";
 
 
 #use sandbox API
-#$fedoraadminpass = 'h0yOJ29X';
+#$fedoraadminpass = 'xxxxxx';
 #$base[0] = 'services.phaidra-sandbox.univie.ac.at';
 
 
@@ -261,7 +261,8 @@ sub getUwmetadata($$$){
      my $creator = shift;
      my @fileNameArray;
      my $fileExtension;
-      
+     
+     $uwmetaTitle =~ s/_/ /g;
             
      my $institutionNode = '{
                     "xmlns": "http://phaidra.univie.ac.at/XML/metadata/lom/V1.0/entity",
@@ -359,4 +360,4 @@ sub getUwmetadata($$$){
 }
 
 
-1;
+1;;

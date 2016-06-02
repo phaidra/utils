@@ -25,6 +25,7 @@ use Mojo::ByteStream qw(b);
 sub getParentFolderId($);
 sub getUwmetadata($$$);
 sub createFolderCollection($$);
+sub createTopLevelCollection($);
 
 my @folderCollections;
 
@@ -86,6 +87,7 @@ while (my $bag = $datasetBags->next){
            my $datasetFotos = $collectionBags->find({'$and' => [ {'folderid'=> $bag->{folderid}}, {'project'  => '650jahren'}]});
            my $i = 0;
            $metadata->{members} = ();
+           my $folderName;
            while (my $fotos = $datasetFotos->next){
                  my $member;
                  $member->{pid} = $fotos->{jobs}[0]->{pid};
@@ -93,11 +95,13 @@ while (my $bag = $datasetBags->next){
                  push @{$metadata->{members}}, $member;
                  my @sourceFileArray = split /\//, $fotos->{SourceFile};
                  my $fileName = pop @sourceFileArray;
-                 my $folderName = pop @sourceFileArray;
-                 $metadata->{metadata}->{uwmetadata} = getUwmetadata($folderName, $defaultDescription, 'Universität Wien' );
-                 $metadata->{metadata}->{members} = $metadata->{members};
+                 $folderName = pop @sourceFileArray;
+                 #$metadata->{metadata}->{uwmetadata} = getUwmetadata($folderName, $defaultDescription, 'Universität Wien' );
+                 #$metadata->{metadata}->{members} = $metadata->{members};
                  $i++;
            }
+           $metadata->{metadata}->{uwmetadata} = getUwmetadata($folderName, $defaultDescription, 'Universität Wien' );
+           $metadata->{metadata}->{members} = $metadata->{members};
            print 'processing foto'."\n";
            print Dumper($metadata->{metadata}->{members});
 
@@ -129,7 +133,51 @@ while (my $bag = $datasetBags->next){
      }
 }
 
+#create top level collection
+
 print "\n\nFolder collections:",Dumper(@folderCollections);
+createTopLevelCollection(\@folderCollections);
+
+
+
+sub createTopLevelCollection($){
+
+    my $folderCollections = shift;
+ 
+    my $metadataTopLevel;
+    $metadataTopLevel->{members} = ();
+
+    my $i = 1;
+    foreach my $pid (@{$folderCollections}){
+                 my $member;
+                 $member->{pid} = $pid;
+                 $member->{'pos'} = $i;
+                 push @{$metadataTopLevel->{members}}, $member;
+                 $i++;
+    }
+    
+    $metadataTopLevel->{metadata}->{members} = $metadataTopLevel->{members};
+    $metadataTopLevel->{metadata}->{uwmetadata} = getUwmetadata('650 Jahren', $defaultDescription, 'Universität Wien' );
+    print 'createTopLevelCollection processing'."\n";
+    print Dumper($metadataTopLevel->{metadata}->{members});
+                
+    my $json_str = b(encode_json({ metadata => $metadataTopLevel->{metadata}  }))->decode('UTF-8'); 
+    my $tx2 = $ua->post($url => form => { metadata => $json_str } );
+    if (my $res2 = $tx2->success) {
+                print Dumper("createTopLevelCollection  post success.", $tx2->res->json);
+    }else {
+                if(defined($tx2->res->json)){
+                    if(exists($tx2->res->json->{alerts})) {
+                           print Dumper("createTopLevelCollection uwmetadata: alerts: ",$tx2->res->json->{alerts});        
+                    }else{
+                           print Dumper("createTopLevelCollection uwmetadata: json: ",$tx2->res->json);        
+                    }
+                }else{
+                    print Dumper("createTopLevelCollection uwmetadata: ",$tx2->error);        
+                }
+    }
+
+}
 
 
 sub getParentFolderId($){
@@ -166,6 +214,7 @@ sub createFolderCollection($$){
     push @{$metadataDir->{members}}, $memberFolder;
 
     my $i = 1;
+    my $folderName;
     while (my $bag = $datasetBagsDir->next){
                  print 'createFolderCollection path:',Dumper($bag->{path});
                  my $memberFolder2;
@@ -174,12 +223,14 @@ sub createFolderCollection($$){
                  push @{$metadataDir->{members}}, $memberFolder2;
                  my @sourceFileArray = split /\//, $bag->{path};
                  my $fileName = pop @sourceFileArray;
-                 my $folderName = pop @sourceFileArray;
-                 $metadataDir->{metadata}->{uwmetadata} = getUwmetadata($folderName, $defaultDescription, 'Universität Wien' );
-                 $metadataDir->{metadata}->{members} = $metadataDir->{members};
+                 $folderName = pop @sourceFileArray;
+                 #$metadataDir->{metadata}->{uwmetadata} = getUwmetadata($folderName, $defaultDescription, 'Universität Wien' );
+                 #$metadataDir->{metadata}->{members} = $metadataDir->{members};
                  $i++;
     }
-    
+    $metadataDir->{metadata}->{uwmetadata} = getUwmetadata($folderName, $defaultDescription, 'Universität Wien' );
+    $metadataDir->{metadata}->{members} = $metadataDir->{members};
+                 
     print 'createFolderCollection processing'."\n";
     print Dumper($metadataDir->{metadata}->{members});
                 

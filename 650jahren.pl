@@ -55,7 +55,7 @@ my $data_jpg = $json->decode($json_text_jpg);
 my $data_pdf = $json->decode($json_text_pdf);
 
 
-my $defaultDescription = 'Die Universität Wien feierte im Jahr 2015 ihr 650. Gründungsjubiläum. Aus diesem Anlass öffnete eine der ältesten und größten Hochschulen Europas ihre Tore einer breiten Öffentlichkeit. Die vielfältigen Fachbereiche, Fakultäten und Zentren der Universität begleiteten das Jubiläumsjahr mit zahlreichen Aktivitäten. Das Angebot beinhaltete Vorträge, Kongresse und Symposien, Spezialvorlesungen und Seminare aber auch Ausstellungen, Konzerte, Sportevents und Performances. Die Vermittlung der Relevanz von Forschung und Lehre stand dabei im Mittelpunkt.';
+my $defaultDescription = 'Die Universität Wien, eine der ältesten und größten Hochschulen Europas, feierte im Jahr 2015 ihr 650. Gründungsjubiläum. Aus diesem Anlass öffnete sie ihre Tore einer breiten Öffentlichkeit und bot ein attraktives Jubiläumsprogramm. Institute, Fachbereiche, Fakultäten und Zentren, wie auch die Dienstleistungseinheiten Bibliothek, Veranstaltungsmanagement und Öffentlichkeitsarbeit, der Alumniverband und die Kinderuni Wien bereicherten das Jubiläumsjahr mit zahlreichen eigenen Aktivitäten. Das Jahresprogramm umfasste unterschiedlichste Formate wie Vorträge, Kongresse und Symposien, Vortragsreihen, Ausstellungen, Konzerte, Sportevents und Filmabende. Das gemeinsame Ziel aller Veranstaltung war es, der Öffentlichkeit einen Einblick in die Arbeit der Universität zu vermitteln und auf die vielfältigen positiven Effekte und den Mehrwert der universitären Lehre und Forschung für die Gesellschaft hinzuweisen.';
 
 sub addFolders($);
 
@@ -92,11 +92,6 @@ foreach my $picture (@{$data_jpg}) {
     $picture->{status} = "new";
     $picture->{tags} = ();
    
-    $folderid =~ s/ //g;
-    $folderid =~ s/-//g;
-    $folderid =~ s/_//g;
-    $folderid =~ s/\.//g;
-    $folderid =~ s/,//g;
     $picture->{folderid} = $folderid;
     $picture->{label} = $picture->{Description};
     $picture->{metadata}->{uwmetadata} = getUwmetadata($fileName, $picture->{Title}, $picture->{Description}, $picture->{Creator});
@@ -208,7 +203,7 @@ sub getUwmetadata($$$$){
       if(defined $description){
            $uwmetaDescription = $description;
       }else{
-           $uwmetaDescription = 'Die Universität Wien feierte im Jahr 2015 ihr 650. Gründungsjubiläum. Aus diesem Anlass öffnete eine der ältesten und größten Hochschulen Europas ihre Tore einer breiten Öffentlichkeit. Die vielfältigen Fachbereiche, Fakultäten und Zentren der Universität begleiteten das Jubiläumsjahr mit zahlreichen Aktivitäten. Das Angebot beinhaltete Vorträge, Kongresse und Symposien, Spezialvorlesungen und Seminare aber auch Ausstellungen, Konzerte, Sportevents und Performances. Die Vermittlung der Relevanz von Forschung und Lehre stand dabei im Mittelpunkt.';
+           $uwmetaDescription = $defaultDescription;
       }
       
       my $uwmetaFirstName = '';

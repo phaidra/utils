@@ -1,0 +1,18 @@
+#!/bin/csh
+
+while 1
+  ./PhaidraIdSaveAgent.pl -jobs irma.jobs
+  echo `date` " sleeping 10 minutes"
+  sleep 600
+end
+
+exit
+
+echo <<EOX
+The file "identifier.tsv" contains a dump from irma.map, the first 4000
+of them are transfered to a file called "batch2" which is then fed
+to "PhaidraIdSaveAgent.pl" for processing:
+EOX
+
+awk ' {print $1}' batch2  |xargs ./PhaidraIdSaveAgent.pl -irma-map-id
+

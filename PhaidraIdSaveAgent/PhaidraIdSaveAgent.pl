@@ -193,7 +193,7 @@ sub has_id {
 
 	my $action = "/object/$pid/id";
 	my $url = Mojo::URL->new;
-	$url->scheme('https');
+	$url->scheme($config->{phaidra_instances}->{$instance}->{apischeme});
 	my @base = split('/',$config->{phaidra_instances}->{$instance}->{apibaseurl});
 	$url->host($base[0]);	
 	if(exists($base[1])){
@@ -237,7 +237,7 @@ sub save_id {
 
 	my $action = "/object/$pid/id/add?".$id->{type}."=".$id->{id};
 	my $url = Mojo::URL->new;
-	$url->scheme('https');
+	$url->scheme($config->{phaidra_instances}->{$instance}->{apischeme});
 	$url->userinfo($config->{phaidra_instances}->{$instance}->{intcallusername}.":".$config->{phaidra_instances}->{$instance}->{intcallpassword});
 	my @base = split('/',$config->{phaidra_instances}->{$instance}->{apibaseurl});
 	$url->host($base[0]);	

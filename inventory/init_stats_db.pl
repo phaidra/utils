@@ -145,6 +145,7 @@ sub createInventory {
                   `created` datetime NOT NULL,
                   `modified` datetime NOT NULL,
                   `title` text,
+                  `deleted` int(11) NOT NULL DEFAULT '0',
                    PRIMARY KEY (`id`),
                    UNIQUE KEY `idsite_2` (`idsite`,`oid`),
                    KEY `oida` (`oid`),

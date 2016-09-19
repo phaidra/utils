@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 use warnings; 
 use strict;
@@ -54,18 +54,18 @@ my $dbhFrontendStats = DBI->connect(
 #connect to phaidraUsersDB database      
 my @phaidraInstances = @{$config->{phaidra_instances}};
 
-my $curentPhaidraInstance;
+my $currentPhaidraInstance;
 foreach (@phaidraInstances){
-      if($_->{phaidra_instance}->{instance_number} eq $instanceNumber){
-               $curentPhaidraInstance = $_->{phaidra_instance};
+      if($_->{instance_number} eq $instanceNumber){
+               $currentPhaidraInstance = $_;
       }
 }
 
 
-my $hostPhairaUsersDB     = $curentPhaidraInstance->{phaidraUsersDB}->{host};
-my $dbNamePhairaUsersDB   = $curentPhaidraInstance->{phaidraUsersDB}->{dbName};
-my $userPhairaUsersDB     = $curentPhaidraInstance->{phaidraUsersDB}->{user};
-my $passPhairaUsersDB     = $curentPhaidraInstance->{phaidraUsersDB}->{pass};
+my $hostPhairaUsersDB     = $currentPhaidraInstance->{phaidraUsersDB}->{host};
+my $dbNamePhairaUsersDB   = $currentPhaidraInstance->{phaidraUsersDB}->{dbName};
+my $userPhairaUsersDB     = $currentPhaidraInstance->{phaidraUsersDB}->{user};
+my $passPhairaUsersDB     = $currentPhaidraInstance->{phaidraUsersDB}->{pass};
 
 my $dbhPhairaUsersDB = DBI->connect(          
                                   "dbi:mysql:dbname=$dbNamePhairaUsersDB;host=$hostPhairaUsersDB", 
@@ -83,12 +83,12 @@ $sthFrontendStats->execute();
 while (my @frontendStatsDbrow = $sthFrontendStats->fetchrow_array){
     $latestTimeFrontendStats =  $frontendStatsDbrow[0];
 } 
-print "latestTimeFrontendStats:\n",$latestTimeFrontendStats,"\n";                                
-#exit;   
+# print "latestTimeFrontendStats:\n",$latestTimeFrontendStats,"\n";                                
+   
 #read PhaidraUser database with newer or equal $latestTimeFrontendStats and upsert new records to Frontend Statistics database
 my $sthPhairaUsersDB = $dbhPhairaUsersDB->prepare( "SELECT * FROM search_pattern where last_update >= \"$latestTimeFrontendStats\" ORDER BY last_update ASC" );
 $sthPhairaUsersDB->execute();
-my $counterUpsert;
+my $counterUpsert = 0;
 my $frontendStats_upsert_query = "INSERT INTO `search_pattern` (`SID`, `idsite`, `name`, `session_id`, `pattern`, `last_update`)
                                                      values(?, ?, ?, ?, ?, ?) 
                                                      on duplicate key update
@@ -101,8 +101,8 @@ my $frontendStats_upsert_query = "INSERT INTO `search_pattern` (`SID`, `idsite`,
 my $sthFrontendStats_upsert = $dbhFrontendStats->prepare($frontendStats_upsert_query);
 
 while (my @phairaUsers_upsert_Dbrow = $sthPhairaUsersDB->fetchrow_array){
-      print "Upserting SID:",$phairaUsers_upsert_Dbrow[0],"\n";
-      print "Upserting SID time:",$phairaUsers_upsert_Dbrow[4],"\n";
+      # print "Upserting SID:",$phairaUsers_upsert_Dbrow[0],"\n";
+      # print "Upserting SID time:",$phairaUsers_upsert_Dbrow[4],"\n";
 
       $sthFrontendStats_upsert->execute(
                                             $phairaUsers_upsert_Dbrow[0],
@@ -110,7 +110,7 @@ while (my @phairaUsers_upsert_Dbrow = $sthPhairaUsersDB->fetchrow_array){
                                             $phairaUsers_upsert_Dbrow[1],
                                             $phairaUsers_upsert_Dbrow[2],
                                             $phairaUsers_upsert_Dbrow[3],
-                                            $phairaUsers_upsert_Dbrow[4] 
+                                            $phairaUsers_upsert_Dbrow[4]
                                            );
      print "error writing record with SID: $phairaUsers_upsert_Dbrow[0] .", $dbhFrontendStats->errstr, "\n" if $dbhFrontendStats->errstr;
      

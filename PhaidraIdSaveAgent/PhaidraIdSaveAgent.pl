@@ -61,7 +61,16 @@ if (defined ($job_col))
   my $mdb_job= $irma_mongo->get_collection ($job_col);
   my $job= $mdb_job->find_one();
   # print "job: ", Dumper ($job);
-  @irma_map_ids= @{$job->{'ids'}};
+
+  my $irma_map_ids= $job->{'ids'};
+
+  unless (defined ($irma_map_ids))
+  {
+    print "no jobs queued\n";
+    exit;
+  }
+
+  @irma_map_ids= @$irma_map_ids;
   $mdb_job->remove ( { _id => $job->{_id} } );
 }
 print "irma_map_ids: ", join (' ', @irma_map_ids), "\n";

@@ -11,6 +11,11 @@ use MongoDB;
 use Encode;
 use File::Find;
 use File::Find::Rule;
+
+
+
+# find /media/phaidra-entw_root/var/www/fuseki/650JahreUniversitatWien/ -type f -iname *.jpg | awk '{print "\"" $0 "\""}' | xargs exiftool -j -Title -Description -Creator -XPComment | tee /home/michal/Documents/code/area42/user/mf/650Jahren/650Jahren2.json
+
 # find /media/phaidra-entw_root/home/folcanm4/650/ -type f -iname *.jpg | awk '{print "\"" $0 "\""}' | xargs exiftool -j -Title -Description -Creator | tee /home/michal/Documents/code/area42/user/mf/650Jahren/650Jahren.json
 
 # find /media/phaidra-entw_root/home/folcanm4/650/ -type f -iname *.pdf | awk '{print "{\"institution\":\"" $0 "\"}"}' | tee /home/michal/Documents/code/area42/user/mf/650Jahren/650JahrenPdf.json
@@ -61,14 +66,16 @@ sub addFolders($);
 
 #!!!!!!!!!!!!!!!!!!!!!!!
 # update 'folders' mongoDb collection
-addFolders('/home/michal/Documents/code/area42/user/mf/angularjs/bagger/data/650jahren/folders/in/650');
+#addFolders('/home/michal/Documents/code/area42/user/mf/angularjs/bagger/data/650jahren/folders/in/650');
+addFolders('/home/michal/Documents/code/area42/user/mf/angularjs/bagger/data/650jahren/folders/in/650 Jahre Universität Wien');
+
 #exit;
 
 
 
 my $i = 1;
 foreach my $picture (@{$data_jpg}) {
-    $picture->{assignee} = "hudakr4";
+    $picture->{assignee} = "jubilaeumb46";
     my @filePath = split /\//, $picture->{SourceFile};
 
     my $fileName = pop @filePath;
@@ -105,7 +112,7 @@ foreach my $picture (@{$data_jpg}) {
 
 my $j = 0;
 foreach my $pdf (@{$data_pdf}) {
-    $pdf->{assignee} = "hudakr4";
+    $pdf->{assignee} = "jubilaeumb46";
     my @filePath = split /\//, $pdf->{path};
     my $fileName = pop @filePath;
     my $folderid = pop @filePath;

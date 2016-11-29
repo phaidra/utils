@@ -19,7 +19,7 @@ use Encode;
 $ENV{MOJO_INACTIVITY_TIMEOUT} = 7200;
 
 
-
+my @errors;
 
 my $file = '/home/michal/Pictures/set7.csv'; 
 
@@ -636,7 +636,7 @@ sub deleteFormatNodeFromUWMeta($){
 ###########################################################
 
 
-my @errors;
+
 
 my $sum = 0;
 open(my $data, '<', $file) or die "Could not open '$file' $!\n";

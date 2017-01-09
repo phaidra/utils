@@ -116,22 +116,24 @@ sub getEntity($$){
                                         if($content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{xmlname} eq 'entity'){
                                            if($isAdviser == 1){
                                                   my $adviser;
-                                                  for(my $m = 0; $m <=  (scalar @{$content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}}) - 1; $m++){
-                                                          # print '$m:',$m,"\n";
-                                                          if(defined $content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]){
-                                                                  if($content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]->{xmlname} eq 'firstname'){
-                                                                           $adviser->{firstname} = $content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]->{ui_value}
-                                                                  }
-                                                                  if($content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]->{xmlname} eq 'lastname'){
-                                                                           $adviser->{lastname} = $content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]->{ui_value}
-                                                                  }
-                                                                  if($content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]->{xmlname} eq 'title1'){
-                                                                           $adviser->{title1} = $content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]->{ui_value}
-                                                                  }
-                                                                  if($content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]->{xmlname} eq 'title2'){
-                                                                           $adviser->{title2} = $content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]->{ui_value}
-                                                                  }
-                                                          }
+						  if($content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}){
+		                                          for(my $m = 0; $m <=  (scalar @{$content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}}) - 1; $m++){
+		                                                  # print '$m:',$m,"\n";
+		                                                  if(defined $content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]){
+		                                                          if($content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]->{xmlname} eq 'firstname'){
+		                                                                   $adviser->{firstname} = $content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]->{ui_value}
+		                                                          }
+		                                                          if($content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]->{xmlname} eq 'lastname'){
+		                                                                   $adviser->{lastname} = $content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]->{ui_value}
+		                                                          }
+		                                                          if($content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]->{xmlname} eq 'title1'){
+		                                                                   $adviser->{title1} = $content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]->{ui_value}
+		                                                          }
+		                                                          if($content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]->{xmlname} eq 'title2'){
+		                                                                   $adviser->{title2} = $content->{metadata}->{uwmetadata}[1]->{children}[$j]->{children}[$k]->{children}[$m]->{ui_value}
+		                                                          }
+		                                                  }
+		                                          }
                                                   }
                                                   if(defined $adviser){
                                                           push @adviserArray, $adviser;
@@ -149,7 +151,9 @@ sub getEntity($$){
                         (defined $adviserArray[$v]->{firstname} || defined $adviserArray[$v]->{lastname}) &&
                         ( $adviserArray[$v]->{firstname} ne '' || $adviserArray[$v]->{lastname} ne '')
                       ){
-                            $adviserString = $adviserString.$adviserArray[$v]->{firstname}.' '.$adviserArray[$v]->{lastname}.', '.$adviserArray[$v]->{title1}.'  ';
+                      	    $adviserString .= $adviserArray[$v]->{firstname}.' ' if $adviserArray[$v]->{firstname};
+                      	    $adviserString .= $adviserArray[$v]->{lastname}.', ' if $adviserArray[$v]->{lastname};
+                      	    $adviserString .= $adviserArray[$v]->{title1}.'  ' if $adviserArray[$v]->{title1};
                     }
             }
            

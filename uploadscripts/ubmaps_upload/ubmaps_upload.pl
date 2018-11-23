@@ -105,14 +105,16 @@ sub main {
 	  }
 
 	  $log->info("Getting marc for ac_number[$acnumber]");
-	  my $md_stat = $alma->find({ac_number => $acnumber})->sort({fetched => -1})->fields({fetched => 1, xmlref => 1})->next;
+	  my $md_stat = $alma->find({ac_number => $acnumber})->sort({fetched => -1})->fields({fetched => 1, xmlref2 => 1})->next;
     
     
-	  unless($md_stat->{xmlref}){
+	  unless($md_stat->{xmlref2}){
 	    $log->error("Mapping ac_number[$acnumber] failed, no marc metadata found");
 	    next;
 	  }
+    
 
+=cutmarc
 	  my $fields; 
     for my $records (@{$md_stat->{xmlref}->{records}}){
       for my $rec (@{$records->{record}}){
@@ -123,15 +125,21 @@ sub main {
         }
       }
     }
-$log->debug("XXXXXXXXXXXXXXXXXX marc: ".Dumper($fields));
+=cut
+
+    my $mab = $md_stat->{xmlref2};
+    my $fields = $mab->{record}[0]->{metadata}[0]->{oai_marc}[0]->{varfield};
+
+    #$log->debug("XXXXXXXXXXXXXXXXXX marc: ".Dumper($fields));
+
 	  $log->info("Mapping marc (fetched ".get_tsISO($md_stat->{fetched}).") to mods for ac_number[$acnumber]");
-	  my ($mods, $geo) = mab2mods($fields, $acnumber);
+	  my ($mods, $geo) = mab2mods($log, $fields, $acnumber);
 
-    #my $res = $ua->post("$apiurl/mods/json2xml" => form => { metadata => b(encode_json({ metadata => { mods => $mods }}))->decode('UTF-8') });
+    my $res = $ua->post("$apiurl/mods/json2xml" => form => { metadata => b(encode_json({ metadata => { mods => $mods }}))->decode('UTF-8') });
 
-    #$log->debug("mods:".Dumper($res));
-    $log->debug("mods:".Dumper($mods));
-    $log->debug("geo:".Dumper($geo));
+    $log->debug("mods:\n".$res->result->json->{metadata}->{mods});
+    #$log->debug("mods:".Dumper($mods));
+    #$log->debug("geo:".Dumper($geo));
   }
 
 }
@@ -143,6 +151,7 @@ sub get_tsISO {
 }
 
 sub mab2mods {
+  my $log = shift;
   my $fields = shift;
   my $ac = shift;
   my @mods;
@@ -151,7 +160,7 @@ sub mab2mods {
 
   #my $fields = $mab->{record}[0]->{metadata}[0]->{oai_marc}[0]->{varfield};
 
-  #app->log->debug("varfields: ".app->dumper($fields));
+  #$log->debug("varfields: \n".Dumper($fields));
 
   my $bklmap = $Bkl::map;
 
@@ -166,37 +175,38 @@ sub mab2mods {
     "input_type" => "node",
     "children" => []
   };
+
+  # date of publication, we first sort this, because if there are more dates, we use only 425a
+  my $found_a = 0;
+  for my $f (@$fields){
+    if($f->{id} eq '425'){
+       if($f->{'i1'} eq 'a'){
+          $found_a = 1;
+          my $date_node = get_date_node($f);
+          push @{$origin_info_node->{children}}, $date_node;
+          last;
+        }
+    }
+  }
+  unless($found_a){
+   for my $f (@$fields){
+    if($f->{id} eq '425'){
+      my $date_node = get_date_node($f);
+      push @{$origin_info_node->{children}}, $date_node;
+      push @mapping_alerts, { type => 'danger', msg => "425a not found, using 425".$f->{'i1'}};
+      last;
+    }
+   }
+  }
   
   for my $field (@$fields){ 
-    #$log->debug(Dumper($field));
-    next unless $field->{'tag'};
-    next unless $field->{'tag'} =~ /\d/g;
+    
+    next unless $field->{'id'};
+    next unless $field->{'id'} =~ /^(\d+)$/g;
 
-    my $fieldid = $field->{'tag'};
-    my $fieldidint = int($field->{'tag'});
+    my $fieldid = $field->{'id'};
+    my $fieldidint = int($field->{'id'});
 
-    # 264
-    if($fieldid eq '264' && $field->{'ind1'} eq ' ' && $field->{'ind2'} eq '1'){
-      for my $sf (@{$field->{'subfield'}}){
-       if($sf->{code} eq 'c'){
-          my $date_node = get_date_node($sf->{content});
-          push @{$origin_info_node->{children}}, $date_node;
-        }
-      }
-    }
-
-    # 001
-    if($fieldid eq '035' && ($field->{'ind1'} eq ' ') && ($field->{'ind2'} eq ' ')){
-      for my $sf (@{$field->{subfield}}){
-        if($sf->{code} eq 'a'){
-          my $acnumber = $sf->{content};
-          my $id_node = get_id_node('ac-number', $acnumber);
-          push @mods, $id_node;
-        }
-      }
-    }
-
-=cutx
     # 001
     if($fieldid eq '001'){
       if($field->{'i1'} ne '-'){
@@ -406,10 +416,10 @@ sub mab2mods {
 
     # bkl classification
     if($fieldid eq '700'){
-      my $bkl_node = get_bkl_node($field, $bklmodel);
+      my $bkl_node = get_bkl_node($field, $bklmap);
       push @mods, $bkl_node;        
     }
-=cut
+
   }
   
   for my $field (keys %{$keyword_chains}){
@@ -689,7 +699,7 @@ sub get_note_node {
 }
 
 sub get_bkl_node {
-  my ($field, $bklmodel) = @_;
+  my ($field, $bklmap) = @_;
 
   if($field->{'i1'} eq 'f'){
     # ok
@@ -741,7 +751,7 @@ sub get_bkl_node {
       push @{$bkl->{attributes}}, {
         "xmlname" => "valueURI",
         "input_type" => "select",
-        "ui_value" => "http://phaidra.univie.ac.at/XML/metadata/lom/V1.0/classification/cls_10/".$bklmodel->get_tid($id)
+        "ui_value" => "http://phaidra.univie.ac.at/XML/metadata/lom/V1.0/classification/cls_10/".$bklmap->{$id}
       };
         
     }

@@ -135,6 +135,14 @@ sub main {
 	  $log->info("Mapping marc (fetched ".get_tsISO($md_stat->{fetched}).") to mods for ac_number[$acnumber]");
 	  my ($mods, $geo) = mab2mods($log, $fields, $acnumber);
 
+    my $filename = "$acnumber.tif";
+    if(-r $filename){
+      $log->info("File [$filename] found.");
+    }else{
+      $log->error("File [$filename] not found.");
+      next;
+    }
+
     my $res = $ua->post("$apiurl/mods/json2xml" => form => { metadata => b(encode_json({ metadata => { mods => $mods }}))->decode('UTF-8') });
 
     $log->debug("mods:\n".$res->result->json->{metadata}->{mods});
@@ -199,7 +207,7 @@ sub mab2mods {
    }
   }
   
-  for my $field (@$fields){ 
+  for my $field (@$fields){
     
     next unless $field->{'id'};
     next unless $field->{'id'} =~ /^(\d+)$/g;

@@ -133,21 +133,26 @@ sub main {
     #$log->debug("XXXXXXXXXXXXXXXXXX marc: ".Dumper($fields));
 
 	  $log->info("Mapping marc (fetched ".get_tsISO($md_stat->{fetched}).") to mods for ac_number[$acnumber]");
+
 	  my ($mods, $geo) = mab2mods($log, $fields, $acnumber);
 
-    my $filename = "$acnumber.tif";
-    if(-r $filename){
-      $log->info("File [$filename] found.");
+    my $filepath = "$acnumber.tif";
+    if(-r $filepath){
+      $log->info("File [$filepath] found.");
     }else{
-      $log->error("File [$filename] not found.");
+      $log->error("File [$filepath] not found.");
       next;
     }
 
     my $res = $ua->post("$apiurl/mods/json2xml" => form => { metadata => b(encode_json({ metadata => { mods => $mods }}))->decode('UTF-8') });
 
-    $log->debug("mods:\n".$res->result->json->{metadata}->{mods});
+    my $xml = $res->result->json->{metadata}->{mods};
+    $log->debug("mods:\n".$xml);
+
+    $res = $ua->post("$apiurl/picture/create" => form => { metadata => b(encode_json({ metadata => { mods => $mods }}))->decode('UTF-8'), file => { file => $filepath }});
+
     #$log->debug("mods:".Dumper($mods));
-    #$log->debug("geo:".Dumper($geo));
+    $log->debug("res:".Dumper($res));
   }
 
 }
@@ -821,13 +826,34 @@ sub get_form_node {
 }
 
 sub get_date_node {
-  my ($val) = @_;
+  my ($field) = @_;
+
+  if($field->{'i1'} ne '-' && $field->{'i1'} ne 'a'){
+    push @mapping_alerts,  { type => 'danger', msg => "date (".$field->{id}.") found, but indicator not - or a, instead: ".$field->{'i1'}};
+  }
+
+  my $val;
+  foreach my $sf (@{$field->{subfield}}){
+
+    if($sf->{label} eq 'a'){
+      $val = $sf->{content};
+    }
+
+    if($sf->{label} eq '-'){
+      $val = $sf->{content};
+    }
+  }
 
   return {
     "xmlname" => "dateIssued",
     "input_type" => "input_datetime",
     "ui_value" => $val,
     "attributes" => [
+        {
+            "xmlname" => "encoding",
+            "input_type" => "select",
+            "ui_value" => "w3cdtf"
+        },
         {
             "xmlname" => "keyDate",
             "input_type" => "select",

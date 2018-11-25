@@ -82,7 +82,9 @@ while (defined (my $arg= shift (@ARGV)))
   push @acnumbers, $arg;
 }
 
-$log->debug(Dumper(\@acnumbers));
+$log->debug("ac_numbers:\n".Dumper(\@acnumbers));
+
+my $datadir = $config->{ubmaps_upload}->{datadir};
 
 my $ua = Mojo::UserAgent->new;
 my $res;
@@ -136,7 +138,7 @@ sub main {
 
 	  my ($mods, $geo) = mab2mods($log, $fields, $acnumber);
 
-    my $filepath = "$acnumber.tif";
+    my $filepath = "$datadir/$acnumber.tif";
     if(-r $filepath){
       $log->info("File [$filepath] found.");
     }else{

@@ -75,7 +75,7 @@ my $configfilepath = Mojo::File->new('ubmaps_upload.json');
 my $config = from_json $configfilepath->slurp;
 
 my @acnumbers;
-my @mapping_alerts = [];
+my @mapping_alerts;
 
 while (defined (my $arg= shift (@ARGV)))
 {
@@ -99,19 +99,23 @@ $log->info("started");
 
 sub main {
 
+  my $acnrcount = scalar @acnumbers;
+  my $i = 0;
   foreach my $acnumber (@acnumbers){
+    $i++;
+    $log->info("processing ac_number[$acnumber] [$i/$acnrcount]");
 
 	  unless($acnumber =~ /AC(\d)+/g){
 	    push @{$res->{alerts}}, { type => "danger", msg =>  "Creating bag failed, $acnumber is not an AC number" };
 	    next;
 	  }
 
-	  $log->info("Getting marc for ac_number[$acnumber]");
+	  $log->info("getting marc for ac_number[$acnumber]");
 	  my $md_stat = $alma->find({ac_number => $acnumber})->sort({fetched => -1})->fields({fetched => 1, xmlref2 => 1})->next;
     
     
 	  unless($md_stat->{xmlref2}){
-	    $log->error("Mapping ac_number[$acnumber] failed, no marc metadata found");
+	    $log->error("mapping ac_number[$acnumber] failed, no marc metadata found");
 	    next;
 	  }
     
@@ -134,27 +138,36 @@ sub main {
 
     #$log->debug("XXXXXXXXXXXXXXXXXX marc: ".Dumper($fields));
 
-	  $log->info("Mapping marc (fetched ".get_tsISO($md_stat->{fetched}).") to mods for ac_number[$acnumber]");
+	  $log->info("mapping marc (fetched ".get_tsISO($md_stat->{fetched}).") to mods for ac_number[$acnumber]");
 
 	  my ($mods, $geo) = mab2mods($log, $fields, $acnumber);
 
     my $filepath = "$datadir/$acnumber.tif";
     if(-r $filepath){
-      $log->info("File [$filepath] found.");
+      $log->info("file [$filepath] found.");
     }else{
-      $log->error("File [$filepath] not found.");
+      $log->error("file [$filepath] not found.");
       next;
     }
 
-    my $res = $ua->post("$apiurl/mods/json2xml" => form => { metadata => b(encode_json({ metadata => { mods => $mods }}))->decode('UTF-8') });
+    my $res = $ua->post("$apiurl/mods/json2xml" => form => { metadata => b(encode_json({ metadata => { mods => $mods }}))->decode('UTF-8') })->result;
+    if($res->is_success){ 
+      $log->info("mapping successful");
+    } elsif($res->is_error){
+      $log->error("mapping failed:\n". $res->message);
+      next;
+    }
 
-    my $xml = $res->result->json->{metadata}->{mods};
-    $log->debug("mods:\n".$xml);
+    my $xml = $res->json->{metadata}->{mods};
+    # $log->debug("mods:\n".$xml);
+    
+    $res = $ua->post("$apiurl/picture/create" => form => { metadata => b(encode_json({ metadata => { mods => $mods }}))->decode('UTF-8'), file => { file => $filepath }})->result;
+    if($res->is_success){ 
+      $log->info("upload successful pid[".$res->json->{pid}."]");
+    } elsif($res->is_error){
+      $log->error("upload failed:\n". $res->message);
+    }
 
-    $res = $ua->post("$apiurl/picture/create" => form => { metadata => b(encode_json({ metadata => { mods => $mods }}))->decode('UTF-8'), file => { file => $filepath }});
-
-    #$log->debug("mods:".Dumper($mods));
-    $log->debug("res:".Dumper($res));
   }
 
 }
@@ -467,7 +480,8 @@ sub mab2mods {
   push @mods, get_fixed_note_node();
   push @mods, get_fixed_license_node();
 
-  if(scalar @mapping_alerts > 0){
+  my $anr = scalar @mapping_alerts;
+  if( $anr > 0 ){
     $log->error("mapping alerts:".Dumper(\@mapping_alerts));
   }
 

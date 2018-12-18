@@ -24,31 +24,9 @@ use Log::Log4perl;
 use Digest::MD5;
 use MongoDB;
 use Storable qw(dclone);
-use Bkl;
 use UBMapsMab2Mods qw(mab2mods);
 
 binmode(STDOUT, ":utf8");
-
-# Konkordanz Beziehungskennzeichnung-MARC Relator Code im Rahmen von UB Maps
-our %role_mapping = (
-
-  # Fällt im Englischen mit editor zusammen
-  "[Bearb.]"            => "edt",
-  "[Hrsg.]"             => "edt",
-  "[Verleger]"          => "edt",
-  "[Drucker]"           => "prt",
-  "[Ill.]"              => "ill",
-  "[Widmungsempfänger]" => "dte",
-  # drm steht eigentlich für Technischer Zeichner, es gibt aber ansonsten nur Künstler - in beiden Fällen ist etwas anderes gemeint, aber Technischer Zeichner trifft es m.E.n. noch eher
-  "[Zeichner]"          => "drm",
-  "[Mitarb.]"           => "ctb",
-  "[Kartograph]"        => "ctg",
-  "[Kartogr.]"          => "ctg",
-  "[Lithograph]"        => "ltg",
-  "[Lithogr.]"          => "ltg",
-  "[Stecher]"           => "egr"
-
-);
 
 $ENV{MOJO_MAX_MESSAGE_SIZE} = 20737418240;
 $ENV{MOJO_INACTIVITY_TIMEOUT} = 1209600;
@@ -76,14 +54,15 @@ my $log = Log::Log4perl::get_logger("Ubmaps");
 my $configfilepath = Mojo::File->new('ubmaps_upload.json');
 my $config = from_json $configfilepath->slurp;
 
-my @acnumbers;
+my @pids;
+my @mapping_alerts;
 
 while (defined (my $arg= shift (@ARGV)))
 {
-  push @acnumbers, $arg;
+  push @pids, $arg;
 }
 
-$log->debug("ac_numbers:\n".Dumper(\@acnumbers));
+$log->debug("pids:\n".Dumper(\@pids));
 
 my $datadir = $config->{ubmaps_upload}->{datadir};
 
@@ -100,58 +79,51 @@ $log->info("started");
 
 sub main {
 
-  my $acnrcount = scalar @acnumbers;
+  my $pidscount = scalar @pids;
   my $i = 0;
-  foreach my $acnumber (@acnumbers){
+  my $res;
+  foreach my $pid (@pids){
     $i++;
-    $log->info("processing ac_number[$acnumber] [$i/$acnrcount]");
+    $log->info("processing pid[$pid] [$i/$pidscount]");
 
-	  unless($acnumber =~ /AC(\d)+/g){
-	    push @{$res->{alerts}}, { type => "danger", msg =>  "Creating bag failed, $acnumber is not an AC number" };
+    $res = $ua->get("$apiurl/object/$pid/index")->result;
+    if($res->is_error){
+      $log->error("getting index for pid[$pid] failed:\n". $res->message);
+      next;
+    }
+
+    my $acnumber;
+    for my $id (@{$res->json->{index}->{dc_identifier}}){
+      if($id =~ /^AC(\d)+$/g){
+        $acnumber = $id;
+        $log->info("found ac_number[$acnumber] for pid[$pid]");
+        last;
+      }
+    }
+
+    unless($acnumber){
+	    $log->error("failed to find ac_number for pid[$pid]");
 	    next;
 	  }
 
-	  $log->info("getting marc for ac_number[$acnumber]");
+	  $log->info("getting metadata for ac_number[$acnumber]");
 	  my $md_stat = $alma->find({ac_number => $acnumber})->sort({fetched => -1})->fields({fetched => 1, xmlref2 => 1})->next;
-    
     
 	  unless($md_stat->{xmlref2}){
 	    $log->error("mapping ac_number[$acnumber] failed, no marc metadata found");
 	    next;
 	  }
-    
-
-=cutmarc
-	  my $fields; 
-    for my $records (@{$md_stat->{xmlref}->{records}}){
-      for my $rec (@{$records->{record}}){
-        for my $rd (@{$rec->{recordData}}){
-          for my $rec2 (@{$rd->{record}}){
-            $fields = $rec2->{datafield};
-          }
-        }
-      }
-    }
-=cut
 
     my $mab = $md_stat->{xmlref2};
     my $fields = $mab->{record}[0]->{metadata}[0]->{oai_marc}[0]->{varfield};
 
-    #$log->debug("XXXXXXXXXXXXXXXXXX marc: ".Dumper($fields));
+    #$log->debug("XXXXXXXXXXXXXXXXXX catalog: ".Dumper($fields));
 
 	  $log->info("mapping marc (fetched ".get_tsISO($md_stat->{fetched}).") to mods for ac_number[$acnumber]");
 
 	  my ($mods, $geo) = mab2mods($log, $fields, $acnumber);
 
-    my $filepath = "$datadir/$acnumber.tif";
-    if(-r $filepath){
-      $log->info("file [$filepath] found.");
-    }else{
-      $log->error("file [$filepath] not found.");
-      next;
-    }
-
-    my $res = $ua->post("$apiurl/mods/json2xml" => form => { metadata => b(encode_json({ metadata => { mods => $mods }}))->decode('UTF-8') })->result;
+    $res = $ua->post("$apiurl/mods/json2xml" => form => { metadata => b(encode_json({ metadata => { mods => $mods }}))->decode('UTF-8') })->result;
     if($res->is_success){ 
       $log->info("mapping successful");
     } elsif($res->is_error){
@@ -162,9 +134,9 @@ sub main {
     my $xml = $res->json->{metadata}->{mods};
     # $log->debug("mods:\n".$xml);
     
-    $res = $ua->post("$apiurl/picture/create" => form => { metadata => b(encode_json({ metadata => { mods => $mods }}))->decode('UTF-8'), file => { file => $filepath }})->result;
+    $res = $ua->post("$apiurl/object/$pid/metadata" => form => { metadata => b(encode_json({ metadata => { mods => $mods, geo => $geo }}))->decode('UTF-8')})->result;
     if($res->is_success){ 
-      $log->info("upload successful pid[".$res->json->{pid}."]");
+      $log->info("update successful");
     } elsif($res->is_error){
       $log->error("upload failed:\n". $res->message);
     }

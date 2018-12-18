@@ -14,8 +14,8 @@ use Data::Dumper;
 $Data::Dumper::Indent= 1;
 use POSIX qw(strftime);
 use MongoDB;
-use Mojo::Util qw(slurp);
 use Mojo::JSON qw(encode_json decode_json);
+use Mojo::File;
 use Mojo::UserAgent;
 use Mojo::URL;
 
@@ -29,7 +29,9 @@ unless(-r $configpath){
 	system ("perldoc '$0'"); exit (0);
 }
 
-my $bytes = slurp $configpath;	
+my $configfile = Mojo::File->new($configpath);
+
+my $bytes = $configfile->slurp;
 my $config = decode_json($bytes);
 
 my $since;

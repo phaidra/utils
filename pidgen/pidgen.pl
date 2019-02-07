@@ -24,11 +24,6 @@ use Encode::Base32::Crockford;
 use MongoDB;
 use POSIX qw(strftime);
 
-$ENV{MOJO_MAX_MESSAGE_SIZE} = 20737418240;
-$ENV{MOJO_INACTIVITY_TIMEOUT} = 1209600;
-$ENV{MOJO_HEARTBEAT_TIMEOUT} = 1209600;
-$ENV{MOJO_MAX_REDIRECTS} = 5;
-
 my $logconf = q(
   log4perl.category.Pidgen           = DEBUG, Logfile, Screen
  

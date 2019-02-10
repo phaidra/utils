@@ -2,7 +2,7 @@
 
 =pod
 
-=head1 pidgen.pl -mongohost -mongouser -mongopass -mongodb -vocabulary -preflabelen -exactmatch
+=head1 pidgen.pl -mongohost -mongouser -mongopass -mongodb -vocabulary -preflabelen -exactmatch -notation
 
   Genereates a new (unused) identifier in the XXXX-XXXX form
 
@@ -12,7 +12,8 @@
   -mongodb - identifier db (identifies pid type: pid.phaidra.org, pid.univie.ac.at, pid.phaidra.at)
   -vocabulary - vocabulary this identifier should belong to (mongo collection)
   -preflabelen - preffered label in english
-  -exactmatch - exact match if available
+  -exactmatch - skos:exactMatch if available
+  -notation - skos:notation if available
 =cut
 
 use strict;
@@ -48,6 +49,7 @@ my $mongodb;
 my $vocabulary;
 my $preflabel_en;
 my $exactmatch;
+my $notation;
 
 while (defined (my $arg= shift (@ARGV)))
 {
@@ -60,6 +62,7 @@ while (defined (my $arg= shift (@ARGV)))
     elsif ($arg eq '-vocabulary') { $vocabulary = shift (@ARGV); }
     elsif ($arg eq '-preflabelen') { $preflabel_en = shift (@ARGV); }
     elsif ($arg eq '-exactmatch') { $exactmatch = shift (@ARGV); }
+    elsif ($arg eq '-notation') { $notation = shift (@ARGV); }
     else { system ("perldoc '$0'"); exit (0); }
   }
 }
@@ -118,6 +121,13 @@ sub getpid
             exit 1;
           }
         }
+        if ($notation) {
+          my $samenotation = $voccollection->find({notation => $notation})->next;
+          if ($samenotation) {
+            $log->error("term with the same notation already exists: notation found: \n".Dumper($samenotation));
+            exit 1;
+          }
+        }
         
         $log->info("generated new pid $pid");
         my $ns;
@@ -133,15 +143,19 @@ sub getpid
           e => time,
           pid => $pid,
           exactMatch => $exactmatch,
+          notation => $notation,
           prefLabel_en => $preflabel_en
         });
 
+        my $dbg = '{ \'@id\': \''.$ns.'/'.$pid.'\'';
         if ($exactmatch) {
-          $log->debug("\n".'{ \'@id\': \''.$ns.'/'.$pid.'\', \'skos:exactMatch\': \''.$exactmatch.'\', \'skos:prefLabel\': { \'eng\': \''.$preflabel_en.'\' } },');
-        } else {
-          $log->debug("\n".'{ \'@id\': \''.$ns.'/'.$pid.'\', \'skos:prefLabel\': { \'eng\': \''.$preflabel_en.'\' } },');
+          $dbg = $dbg . ', \'skos:exactMatch\': \''.$exactmatch.'\'';
         }
-
+        if ($notation) {
+          $dbg = $dbg . ', \'skos:notation\': \''.$notation.'\'';
+        }
+        $dbg = $dbg . ', \'skos:prefLabel\': { \'eng\': \''.$preflabel_en.'\' } },';
+        $log->debug("\n".$dbg);
         exit 0;
       }
     }

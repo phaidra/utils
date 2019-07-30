@@ -165,7 +165,8 @@ print __LINE__, " [", scalar localtime, "] processing record ", Dumper ($r);
 
 		# check if id was saved
 		my $has_id = has_id($config, $instance, $pid, $id);
-
+# sleep so that the agent won't pepper the server with request too hard (eg when book uploads come)
+sleep(1);
 # print __LINE__, " [", scalar localtime, "] has_id=[$has_id]\n";
 
 		if(defined($has_id)){

@@ -130,8 +130,6 @@ for my $pid (@{$pids->{pids}}){
 
   my $url = "https://$username:".url_escape($password).'@'."services.$baseurl/api/object/$pid/uwmetadata";
 
-  print "[".scalar localtime."] pid=[$pid] url[$url]\n";
-
   print "[".scalar localtime."] pid=[$pid] ", "processing \n";
 
   my $ua = Mojo::UserAgent->new;

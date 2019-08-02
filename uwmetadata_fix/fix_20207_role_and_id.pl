@@ -36,11 +36,7 @@ sub fixMetadata($$){
           }
         }
       }
-      if ($ch->{xmlname} eq 'histkult') {
-
-      }
     }
-    print "pid=[$pid] xmlname=[".$top->{xmlname}."]\n";
 
     if ($top->{xmlname} eq 'lifecycle') {
       for my $ch (@{$top->{children}}){
@@ -159,7 +155,7 @@ for my $pid (@{$pids->{pids}}){
     my $postres = $ua->post($url => form => { metadata => $json })->result;
 
     if ($postres->is_success) {
-      print "pid=[$pid] success\n";
+      print "[".scalar localtime."] pid=[$pid] ", "success \n";
     }else{
       print "[".scalar localtime."] pid=[$pid] ", "ERROR saving UWMETADATA:".$postres->code." ".$postres->message."\n";
       if($postres->json){

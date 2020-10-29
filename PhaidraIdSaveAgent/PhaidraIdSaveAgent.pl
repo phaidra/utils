@@ -20,6 +20,8 @@ use Mojo::JSON qw(encode_json decode_json);
 use Mojo::UserAgent;
 use Mojo::URL;
 
+$ENV{MOJO_INACTIVITY_TIMEOUT} = 36000;
+
 my $configpath = 'PhaidraIdSaveAgent.json';
 unless(-f $configpath){
 	print __LINE__, " [".scalar localtime."] ", "Error: config path $configpath is not a file (or file does not exist). Usually $configpath would be a link to /etc/phaidra/...\n";

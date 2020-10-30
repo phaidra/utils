@@ -60,7 +60,7 @@ unless(defined($since) || @irma_map_ids || defined ($job_col)){
 my $mongodbConnectTimeoutMs = 300000;
 my $mongodbSocketTimeoutMs  = 300000;
 
-my $irma_mongo = MongoDB::MongoClient->new(host => $config->{'PhaidraIdSaveAgent'}->{'irma_mongodb'}->{'host'}, username => $config->{'PhaidraIdSaveAgent'}->{'irma_mongodb'}->{'username'}, password => $config->{'PhaidraIdSaveAgent'}->{'irma_mongodb'}->{'password'}, db_name => $config->{'PhaidraIdSaveAgent'}->{'irma_mongodb'}->{'database'}, connect_timeout_ms => $mongodbConnectTimeoutMs, socket_timeout_ms => $mongodbSocketTimeoutMs)->get_database($config->{'PhaidraIdSaveAgent'}->{'irma_mongodb'}->{'database'});
+my $irma_mongo = MongoDB::MongoClient->new(host => $config->{'irma_mongodb'}->{'host'}, username => $config->{'irma_mongodb'}->{'username'}, password => $config->{'irma_mongodb'}->{'password'}, db_name => $config->{'irma_mongodb'}->{'database'}, connect_timeout_ms => $mongodbConnectTimeoutMs, socket_timeout_ms => $mongodbSocketTimeoutMs)->get_database($config->{'irma_mongodb'}->{'database'});
 
 if (defined ($job_col))
 {

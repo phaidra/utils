@@ -20,6 +20,8 @@ use Mojo::JSON qw(encode_json decode_json);
 use Mojo::UserAgent;
 use Mojo::URL;
 
+$ENV{MOJO_INACTIVITY_TIMEOUT} = 36000;
+
 my $configpath = 'PhaidraIdSaveAgent.json';
 unless(-f $configpath){
 	print __LINE__, " [".scalar localtime."] ", "Error: config path $configpath is not a file (or file does not exist). Usually $configpath would be a link to /etc/phaidra/...\n";
@@ -55,8 +57,10 @@ unless(defined($since) || @irma_map_ids || defined ($job_col)){
 	system ("perldoc '$0'"); exit (0);
 }
 
+my $mongodbConnectTimeoutMs = 300000;
+my $mongodbSocketTimeoutMs  = 300000;
 
-my $irma_mongo = MongoDB::MongoClient->new(host => $config->{irma_mongodb}->{host}, username => $config->{irma_mongodb}->{username}, password => $config->{irma_mongodb}->{password}, db_name => $config->{irma_mongodb}->{database})->get_database($config->{irma_mongodb}->{database});
+my $irma_mongo = MongoDB::MongoClient->new(host => $config->{'irma_mongodb'}->{'host'}, username => $config->{'irma_mongodb'}->{'username'}, password => $config->{'irma_mongodb'}->{'password'}, db_name => $config->{'irma_mongodb'}->{'database'}, connect_timeout_ms => $mongodbConnectTimeoutMs, socket_timeout_ms => $mongodbSocketTimeoutMs)->get_database($config->{'irma_mongodb'}->{'database'});
 
 if (defined ($job_col))
 {

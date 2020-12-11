@@ -19,6 +19,8 @@ use Mojo::File;
 use Mojo::UserAgent;
 use Mojo::URL;
 
+$ENV{MOJO_INACTIVITY_TIMEOUT} = 36000;
+
 my $configpath = 'PhaidraGenerateHandleAgent.json';
 unless(-f $configpath){
 	print "[".scalar localtime."] ", "Error: config path $configpath is not a file (or file does not exist). Usually $configpath would be a link to /etc/phaidra/...\n";
@@ -52,9 +54,11 @@ unless(defined($since)){
 	system ("perldoc '$0'"); exit (0);
 }
 
+my $mongodbConnectTimeoutMs = 300000;
+my $mongodbSocketTimeoutMs  = 300000;
 
-my $irma_mongo = MongoDB::MongoClient->new(host => $config->{irma_mongodb}->{host}, username => $config->{irma_mongodb}->{username}, password => $config->{irma_mongodb}->{password}, db_name => $config->{irma_mongodb}->{database})->get_database($config->{irma_mongodb}->{database});
-my $paf_mongo = MongoDB::MongoClient->new(host => $config->{paf_mongodb}->{host}, username => $config->{paf_mongodb}->{username}, password => $config->{paf_mongodb}->{password}, db_name => $config->{paf_mongodb}->{database})->get_database($config->{paf_mongodb}->{database});
+my $irma_mongo = MongoDB::MongoClient->new(host => $config->{irma_mongodb}->{host}, username => $config->{irma_mongodb}->{username}, password => $config->{irma_mongodb}->{password}, db_name => $config->{irma_mongodb}->{database}, connect_timeout_ms => $mongodbConnectTimeoutMs, socket_timeout_ms => $mongodbSocketTimeoutMs)->get_database($config->{irma_mongodb}->{database});
+my $paf_mongo = MongoDB::MongoClient->new(host => $config->{paf_mongodb}->{host}, username => $config->{paf_mongodb}->{username}, password => $config->{paf_mongodb}->{password}, db_name => $config->{paf_mongodb}->{database}, connect_timeout_ms => $mongodbConnectTimeoutMs, socket_timeout_ms => $mongodbSocketTimeoutMs)->get_database($config->{paf_mongodb}->{database});
 
 # search for events of object state changed to A
 # example: 

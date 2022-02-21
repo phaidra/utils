@@ -114,7 +114,7 @@ for my $idsite (@siteids) {
   return dbError($fromdb->errstr) unless $fromsth;
   return dbError($fromdb->errstr) unless $fromsth->execute($idsite, $max_server_time);
 
-  my ($idaction, $pid, $ts, $loc);
+  my ($pid, $ts, $loc);
   $fromsth->bind_columns(\$pid, \$ts, \$loc);
   while ($fromsth->fetch) {
     return dbError($todb->errstr) unless $tosth->execute($pid, $ts, $loc);
@@ -123,28 +123,26 @@ for my $idsite (@siteids) {
 
 for my $idsite (@siteids) {
   $log->info("Updating downloads table $idsite...");
-  $fromsth = $todb->prepare("SELECT MAX(`idaction`) FROM `downloads_" . $idsite . "`;");
+  $fromsth = $todb->prepare("SELECT MAX(`server_time`) FROM `downloads_" . $idsite . "`;");
   return dbError($fromdb->errstr) unless $fromsth;
   return dbError($fromdb->errstr) unless $fromsth->execute();
   my $max_server_time;
   $fromsth->bind_columns(\$max_server_time);
   $fromsth->fetch;
-  if ($max_server_time) {
-    $max_server_time = int($max_server_time);
-  } else {
-    $max_server_time = 0
+  unless ($max_server_time) {
+    $max_server_time = '1970-01-01';
   }
 
-  $log->info("Latest idaction: $max_server_time");
+  $log->info("Latest server_time: $max_server_time");
 
   $tosth = $todb->prepare("
-    INSERT INTO `downloads_" . $idsite . "`(idaction, pid, server_time, location_country)
+    INSERT INTO `downloads_" . $idsite . "`(pid, server_time, location_country)
     VALUES (?, ?, ?);
   ");
   return dbError($todb->errstr) unless $tosth;
 
   $fromsth = $fromdb->prepare("
-    SELECT idaction, LOWER(REGEXP_SUBSTR(name, 'o:\\\\d+')), server_time, location_country
+    SELECT LOWER(REGEXP_SUBSTR(name, 'o:\\\\d+')), server_time, location_country
     FROM piwik_log_link_visit_action
       INNER JOIN piwik_log_action on piwik_log_action.idaction = piwik_log_link_visit_action.idaction_url
       INNER JOIN piwik_log_visit on piwik_log_visit.idvisit = piwik_log_link_visit_action.idvisit
@@ -152,15 +150,15 @@ for my $idsite (@siteids) {
       piwik_log_action.type = 1 AND
       piwik_log_link_visit_action.idsite = ? AND
       (piwik_log_action.name like '%/download/o:%' OR piwik_log_action.name like '%/open/o:%')AND
-      piwik_log_action.idaction > ?
+      piwik_log_link_visit_action.server_time > ?
   ");
   return dbError($fromdb->errstr) unless $fromsth;
   return dbError($fromdb->errstr) unless $fromsth->execute($idsite, $max_server_time);
 
-  my ($idaction, $pid, $ts, $loc);
-  $fromsth->bind_columns(\$idaction, \$pid, \$ts, \$loc);
+  my ($pid, $ts, $loc);
+  $fromsth->bind_columns(\$pid, \$ts, \$loc);
   while ($fromsth->fetch) {
-    return dbError($todb->errstr) unless $tosth->execute($idaction, $pid, $ts, $loc);
+    return dbError($todb->errstr) unless $tosth->execute($pid, $ts, $loc);
   }
 }
 

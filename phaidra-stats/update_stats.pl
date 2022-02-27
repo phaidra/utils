@@ -14,6 +14,12 @@ usage:
 ./update_stats.pl
 =cut
 
+# https://developer.matomo.org/guides/database-schema#log-data-persistence-action-types
+# Piwik\Tracker\Action::TYPE_PAGE_URL = 1: the action is a URL to a page on the website being tracked.
+# Piwik\Tracker\Action::TYPE_OUTLINK = 2: the action is a URL is of a link on the website being tracked. A visitor clicked it.
+# Piwik\Tracker\Action::TYPE_DOWNLOAD = 3: the action is a URL of a file that was downloaded from the website being tracked.
+# Piwik\Tracker\Action::TYPE_PAGE_TITLE = 4: the action is the page title of a page on the website being tracked.
+
 my $logconf = q(
   log4perl.category.MyLogger         = INFO, Logfile, Screen
  
@@ -147,9 +153,8 @@ for my $idsite (@siteids) {
       INNER JOIN piwik_log_action on piwik_log_action.idaction = piwik_log_link_visit_action.idaction_url
       INNER JOIN piwik_log_visit on piwik_log_visit.idvisit = piwik_log_link_visit_action.idvisit
     WHERE 
-      piwik_log_action.type = 1 AND
+      (((piwik_log_action.type = 3) AND (name like '%o:%')) OR ( (piwik_log_action.type = 1) AND ( (name like '%/download/o:%') OR (name like '%/open/o:%') OR (name like '%/downloadwebversion/o:%') OR (name like '%/openwebversion/o:%') ) )) AND
       piwik_log_link_visit_action.idsite = ? AND
-      (piwik_log_action.name like '%/download/o:%' OR piwik_log_action.name like '%/open/o:%')AND
       piwik_log_link_visit_action.server_time > ?
   ");
   return dbError($fromdb->errstr) unless $fromsth;

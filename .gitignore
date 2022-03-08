@@ -2,3 +2,5 @@ screenlog.*
 batch*
 identifier.tsv
 typescript
+phaidra-stats/config.json
+phaidra-stats/update_stats.log

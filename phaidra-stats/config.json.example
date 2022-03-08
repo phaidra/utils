@@ -1,0 +1,13 @@
+{
+  "matomodb": {
+    "dsn": "xxx",
+    "user": "xxx",
+    "pass": "xxx"
+  },
+  "statsdb": {
+    "dsn": "xxx",
+    "user": "xxx",
+    "pass": "xxx"
+  },
+  "siteids": []
+}

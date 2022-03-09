@@ -60,7 +60,7 @@ unless(defined($since) || @irma_map_ids || defined ($job_col)){
 my $mongodbConnectTimeoutMs = 300000;
 my $mongodbSocketTimeoutMs  = 300000;
 
-my $irma_mongo = MongoDB::MongoClient->new(host => $config->{'irma_mongodb'}->{'host'}, port => $config->{'irma_mongodb'}->{'port'}, username => $config->{'irma_mongodb'}->{'username'}, password => $config->{'irma_mongodb'}->{'password'}, db => $config->{'irma_mongodb'}->{'database'}, connect_timeout_ms => $mongodbConnectTimeoutMs, socket_timeout_ms => $mongodbSocketTimeoutMs)->get_database($config->{'irma_mongodb'}->{'database'});
+my $irma_mongo = MongoDB::MongoClient->new(host => $config->{'irma_mongodb'}->{'host'}, port => $config->{'irma_mongodb'}->{'port'}, username => $config->{'irma_mongodb'}->{'username'}, password => $config->{'irma_mongodb'}->{'password'}, connect_timeout_ms => $mongodbConnectTimeoutMs, socket_timeout_ms => $mongodbSocketTimeoutMs)->get_database($config->{'irma_mongodb'}->{'database'});
 
 if (defined ($job_col))
 {

@@ -138,7 +138,9 @@ for my $idsite (@siteids) {
     $ipa = anonymize_ip($ip);
     $visitor_id = create_visitor_id($ip, $visitday);
 
-    return dbError($todb->errstr) unless $tosth->execute('info', $pid, $ipa, $loc, $ts, $ts, $visitor_id);
+    eval {
+     dbError($todb->errstr) unless $tosth->execute('info', $pid, $ipa, $loc, $ts, $ts, $visitor_id);
+     }
   }
 
   $fromsth = $fromdb->prepare("
@@ -158,8 +160,9 @@ for my $idsite (@siteids) {
 
     $ipa = anonymize_ip($ip);
     $visitor_id = create_visitor_id($ip, $visitday);
-
-    return dbError($todb->errstr) unless $tosth->execute('download', $pid, $ip, $loc, $ts, $ts, $visitor_id);
+eval {
+     dbError($todb->errstr) unless $tosth->execute('download', $pid, $ip, $loc, $ts, $ts, $visitor_id);
+     }
   }
 }
 
